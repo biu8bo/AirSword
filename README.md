@@ -54,6 +54,17 @@ dotnet run --project src/LingXuZhi.App/LingXuZhi.App.csproj -c Debug -p:Platform
 dotnet test tests/LingXuZhi.Core.Tests/LingXuZhi.Core.Tests.csproj
 ```
 
+### 发布单文件
+
+```bash
+dotnet publish src/LingXuZhi.App/LingXuZhi.App.csproj -c Release -r win-x64 -p:Platform=x64 ^
+  -p:SelfContained=true -p:PublishSingleFile=true ^
+  -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true ^
+  -o publish
+```
+
+产出 `publish/LingXuZhi.App.exe`（约 260MB,自包含 .NET 运行时、WinAppSDK、OpenCV 原生库与 ONNX 模型,无需安装任何依赖）。首次启动会将原生库与模型自解压到临时目录,稍慢属正常现象。
+
 ---
 
 ## 手势使用说明
