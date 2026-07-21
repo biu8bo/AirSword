@@ -15,7 +15,7 @@
 2. **解耦红线**：识别接口的数据结构放在 Abstractions，**不得引用 OpenCvSharp 类型**（`Mat` 不能出现在接口签名里）。接口只传字节数组或自定义 `ImageFrame`。
 3. **模型加载**：ONNX 模型放在 `LingXuZhi.Vision.OpenCv/Models/`（实现项目内，不放外部 `assets/`），构建时拷贝到输出目录 `Models\`。路径通过 `VisionOptions` 注入（默认相对 `AppContext.BaseDirectory`），不硬编码绝对路径。
 4. **不实现 MediaPipe**：`LingXuZhi.Vision.MediaPipe` 仅 README 占位，不写代码；App 默认 DI 注册 OpenCv 实现。
-5. **本阶段不做手势判定**：21 关键点输出即可，不判定剑指/捏合（阶段 3）。
+5. **本阶段不做手势判定**：21 关键点输出即可，不判定指向/捏合（阶段 3）。
 6. **本阶段不做鼠标控制**：识别结果只用于可视化与调试输出。
 
 ## 模型说明
@@ -60,7 +60,7 @@
 
 ### 不做
 
-- 手势状态机、剑指/捏合判定（阶段 3）
+- 手势状态机、指向/捏合判定（阶段 3）
 - 鼠标控制（阶段 3）
 - 平滑滤波、死区（阶段 3）
 - MediaPipe 实现

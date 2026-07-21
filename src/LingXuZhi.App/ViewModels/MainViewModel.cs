@@ -92,6 +92,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _deadZoneText = "—";
 
     [ObservableProperty]
+    private string _pinchDistanceText = "—";
+
+    [ObservableProperty]
     private string _mouseDeltaText = "—";
 
     [ObservableProperty]
@@ -280,6 +283,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RawPointerText = $"{action.RawNormalized.X:F3}, {action.RawNormalized.Y:F3}";
         SmoothedPointerText = $"{action.SmoothedNormalized.X:F3}, {action.SmoothedNormalized.Y:F3}";
         DeadZoneText = action.InDeadZone ? "命中" : "否";
+        PinchDistanceText = action.PinchLeftDistance < 10
+            ? $"食 {action.PinchLeftDistance:F3} · 中 {action.PinchRightDistance:F3} / 阈 {Settings.PinchThreshold:F2}"
+            : "—";
         MouseDeltaText = $"{_gestures.LastMouseDx:F1}, {_gestures.LastMouseDy:F1}";
         ScrollCountText = _gestures.ScrollEventCount.ToString();
         ClickCountText = _gestures.ClickEventCount.ToString();
@@ -323,16 +329,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static string FormatGesture(MouseAction action) => action.State switch
     {
-        MachineState.Moving => "剑指·移动",
-        MachineState.LeftClick => "捏合·左键",
-        MachineState.RightClick => "捏合·右键",
-        MachineState.Scroll => "张开·滚轮",
+        MachineState.Moving => "食指·移动",
+        MachineState.PinchPending => "捏合·待定(单击/拖拽)",
+        MachineState.Dragging => "捏合·拖拽中",
+        MachineState.RightClick => "三指捏合·右键",
+        MachineState.Scroll => action.ObservedGesture == GestureKind.OpenPalmThumbIn ? "四指张开·下滚" : "五指张开·上滚",
         _ => action.ObservedGesture switch
         {
-            GestureKind.Pointer => "剑指(去抖中)",
+            GestureKind.Pointer => "食指(去抖中)",
             GestureKind.PinchLeft => "左键(去抖中)",
             GestureKind.PinchRight => "右键(去抖中)",
-            GestureKind.OpenPalm => "张开(去抖中)",
+            GestureKind.OpenPalm => "上滚(去抖中)",
+            GestureKind.OpenPalmThumbIn => "下滚(去抖中)",
             _ => "空闲",
         },
     };

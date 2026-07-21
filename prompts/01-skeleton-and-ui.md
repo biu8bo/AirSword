@@ -25,7 +25,7 @@
 - [ ] **摄像头预览控件**（`Controls/CameraPreviewControl.xaml`）：实时显示摄像头帧，本阶段用 OpenCV `VideoCapture` 采集，转 SoftwareBitmap/WriteableBitmap 显示。
 - [ ] **设置面板**（`Controls/SettingsPanelControl.xaml`）：摄像头设备选择、分辨率选择、灵敏度滑块、平滑系数滑块、死区半径滑块、启用鼠标仿真开关（本阶段开关无效，仅 UI）。
 - [ ] **调试数据面板**（`Controls/DebugPanelControl.xaml`）：FPS、帧分辨率、处理耗时、状态文本、关键点坐标列表（本阶段为占位空数据）。
-- [ ] **状态指示条**：当前手势状态（空闲/剑指/左键/右键/滚轮），本阶段恒显示"空闲"。
+- [ ] **状态指示条**：当前手势状态（空闲/指向/左键/右键/滚轮），本阶段恒显示"空闲"。
 - [ ] `Core/Configuration/` 下参数模型（`AppSettings`：灵敏度、平滑系数、死区、镜像翻转等），绑定设置面板。
 - [ ] 摄像头采集抽象 `ICameraSource`（定义在 `Platform.Camera`）+ OpenCV 实现。
 - [ ] 应用生命周期：启动→初始化摄像头→预览；关闭→释放摄像头。

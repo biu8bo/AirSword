@@ -26,21 +26,28 @@ public sealed class GestureControlService
         _mouse = mouse;
 
         var recognizer = new DefaultGestureRecognizer(() => _settings.PinchThreshold);
-        var stateMachine = new GestureStateMachine(() => (int)Math.Round(_settings.DebounceFrames));
+        var stateMachine = new GestureStateMachine(
+            () => (int)Math.Round(_settings.DebounceFrames),
+            () => _settings.DragThreshold,
+            () => (int)Math.Round(_settings.DoublePinchWindowMs));
         var smoother = new EmaSmoother(() => Math.Clamp(1.0 - _settings.Smoothing, 0.05, 1.0));
         var deadZone = new DeadZoneFilter(() =>
         {
             var minSide = Math.Max(1, Math.Min(_frameW, _frameH));
             return _settings.DeadZoneRadius / minSide;
         });
+        // 镜像开关作用在采集帧上(预览与识别共用镜像后的帧),关键点已是镜像坐标:
+        // 镜像开 → 坐标方向已符合直觉,映射器不得再翻转(否则左右颠倒);
+        // 镜像关 → 帧未翻转,由映射器补一次翻转,保证"手向右、光标向右"
         var mapper = new CoordinateMapper(
             () => (GetSystemMetrics(0), GetSystemMetrics(1)),
-            () => _settings.Mirror,
+            () => !_settings.Mirror,
             () => _settings.Sensitivity);
 
         _pipeline = new GesturePipeline(
             recognizer, stateMachine, smoother, deadZone, mapper,
-            () => (int)Math.Round(_settings.ScrollLines));
+            () => (int)Math.Round(_settings.ScrollLines),
+            () => _settings.PinchThreshold);
     }
 
     public int ScrollEventCount { get; private set; }
@@ -67,12 +74,13 @@ public sealed class GestureControlService
 
         if (!landmarks.Detected || landmarks.Landmarks.Count < 21)
         {
-            _pipeline.Reset();
+            // 交给管线复位:拖拽中断需补发 LeftUp,待定单击需补发 LeftClick
+            var flushAction = _pipeline.Process(null);
             _hasLastScreen = false;
             LastAction = null;
-            return new MouseAction(
-                MouseActionKind.None, 0, 0, 0, false,
-                MachineState.Idle, GestureKind.Idle, default, default);
+            if (_settings.MouseSimulationEnabled)
+                Apply(flushAction);
+            return flushAction;
         }
 
         var norm = new Vec2[21];
@@ -107,9 +115,22 @@ public sealed class GestureControlService
                 _hasLastScreen = true;
                 break;
 
+            case MouseActionKind.LeftDown:
+                _mouse.LeftDown();
+                break;
+
+            case MouseActionKind.LeftUp:
+                _mouse.LeftUp();
+                break;
+
             case MouseActionKind.LeftClick:
                 _mouse.LeftClick();
                 ClickEventCount++;
+                break;
+
+            case MouseActionKind.DoubleClick:
+                _mouse.DoubleClick();
+                ClickEventCount += 2;
                 break;
 
             case MouseActionKind.RightClick:

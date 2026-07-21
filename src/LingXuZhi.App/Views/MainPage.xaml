@@ -26,9 +26,18 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <!-- 预留系统窗口按钮区域(最小化/最大化/关闭,约 3 × 46 逻辑像素) -->
                 <ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
+
+            <!-- 拖拽区只覆盖左侧非交互区域,右侧帮助按钮保持可点击 -->
+            <Border
+                x:Name="DragRegion"
+                Grid.Column="0"
+                Grid.ColumnSpan="4"
+                Margin="-16,0,0,0"
+                Background="Transparent" />
 
             <Image
                 x:Name="TitleLogo"
@@ -74,6 +83,26 @@
                 FontSize="13"
                 Foreground="{StaticResource TextSecondaryBrush}"
                 Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" />
+
+            <Button
+                x:Name="HelpButton"
+                Grid.Column="5"
+                Width="44"
+                Height="40"
+                Margin="4,0,4,0"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="OnHelpClick"
+                ToolTipService.ToolTip="操作说明 (F1)">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="F1" />
+                </Button.KeyboardAccelerators>
+                <FontIcon
+                    FontSize="16"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Glyph="&#xE897;" />
+            </Button>
         </Grid>
 
         <Grid
@@ -153,5 +182,109 @@
             </Grid>
             </Border>
         </Grid>
+
+        <!-- 操作说明帮助对话框(标题栏 ? 按钮 / F1 打开) -->
+        <ContentDialog
+            x:Name="HelpDialog"
+            Title="操作说明"
+            Background="{StaticResource PanelBrush}"
+            CloseButtonText="知道了"
+            DefaultButton="Close"
+            Foreground="{StaticResource TextPrimaryBrush}">
+            <ScrollViewer MaxHeight="520" VerticalScrollBarVisibility="Auto">
+                <StackPanel MaxWidth="480" Spacing="14">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="面对摄像头,让手完整入画。所有手势需保持数帧才生效(去抖),阈值与灵敏度可在右侧设置面板调整。"
+                        TextWrapping="Wrap" />
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="食指 · 移动指针" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            Text="食指伸直、中指收起,其他手指不参与判定。指针跟随食指尖平滑移动;手停在画面中央虚线圆(死区)内时指针静止。注意:中指也伸直时不识别为移动,四指全伸直会进入滚轮手势。"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="拇指–食指捏合 · 左键" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            TextWrapping="Wrap">
+                            <Run Text="• 单击:原地捏合后松开(中指勿一起靠拢,否则是右键)" />
+                            <LineBreak />
+                            <Run Text="• 双击:快速两次原地捏合" />
+                            <LineBreak />
+                            <Run Text="• 拖拽:捏住并移动,松开即释放" />
+                        </TextBlock>
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{StaticResource TextSecondaryBrush}"
+                            Text="提示:单击会延迟约 0.35 秒发出,用于等待可能的第二次捏合。"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="三指捏合 · 右键" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            Text="拇指、食指、中指三个指尖捏合到一起,触发一次右键单击;捏住不放不会连点,无名指、小指姿态任意。"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="张开手掌 · 滚轮" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            TextWrapping="Wrap">
+                            <Run Text="• 五指张开(拇指也张开):持续向上滚动" />
+                            <LineBreak />
+                            <Run Text="• 四指张开、拇指弯向掌心:持续向下滚动" />
+                            <LineBreak />
+                            <Run Text="• 切换拇指开合即可换向,收回手势停止滚动" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="小贴士" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            TextWrapping="Wrap">
+                            <Run Text="• 手出画或被遮挡时识别中断,拖拽会自动释放按键" />
+                            <LineBreak />
+                            <Run Text="• 只想看识别效果时,可关闭设置中的「启用鼠标仿真」" />
+                            <LineBreak />
+                            <Run Text="• 移动抖动可调大「平滑系数」" />
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </ContentDialog>
     </Grid>
 </Page>

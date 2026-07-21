@@ -5,6 +5,7 @@ public static class FingerGeometry
 {
     // MediaPipe 拓扑: 拇指 1-2-3-4, 食指 5-6-7-8, 中指 9-10-11-12, 无名 13-14-15-16, 小指 17-18-19-20
     public const int Wrist = 0;
+    public const int ThumbMcp = 2;
     public const int ThumbTip = 4;
     public const int IndexMcp = 5;
     public const int IndexTip = 8;
@@ -33,6 +34,23 @@ public static class FingerGeometry
     public static bool IsBent(IReadOnlyList<Vec2> pts, int tip, int mcp, float ratio = 1.5f)
         => !IsExtended(pts, tip, mcp, ratio);
 
+    /// <summary>
+    /// 拇指张开判定。不能用「指尖到腕距离」法:拇指折向掌心时指尖横穿手掌,
+    /// 落在无名/小指根附近,离腕依然很远,会被误判为张开。
+    /// 改用小指根做参照(旋转不变):张开时拇指尖远离小指侧,
+    /// 折向掌心时拇指尖靠近小指侧,距离明显缩短。
+    /// </summary>
+    public static bool IsThumbOpen(IReadOnlyList<Vec2> pts, float ratio = 1.1f)
+    {
+        if (pts.Count < 21)
+            return false;
+        var pinkyMcp = pts[PinkyMcp];
+        var baseLen = pts[ThumbMcp].DistanceTo(pinkyMcp);
+        if (baseLen < 1e-4f)
+            return false;
+        return pts[ThumbTip].DistanceTo(pinkyMcp) / baseLen > ratio;
+    }
+
     /// <summary>捏合距离按手掌宽度(腕→中指 MCP)归一化。</summary>
     public static float NormalizedPinchDistance(IReadOnlyList<Vec2> pts, int a, int b)
     {
@@ -44,8 +62,9 @@ public static class FingerGeometry
         return pts[a].DistanceTo(pts[b]) / palm;
     }
 
-    public static Vec2 SwordPointer(IReadOnlyList<Vec2> pts)
-        => Vec2.Midpoint(pts[IndexTip], pts[MiddleTip]);
+    /// <summary>指针采样点:食指指尖。</summary>
+    public static Vec2 PointerPosition(IReadOnlyList<Vec2> pts)
+        => pts[IndexTip];
 
     public static Vec2 PalmCenter(IReadOnlyList<Vec2> pts)
         => pts[MiddleMcp];

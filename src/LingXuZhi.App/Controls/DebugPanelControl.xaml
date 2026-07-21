@@ -37,6 +37,7 @@
                     <RowDefinition />
                     <RowDefinition />
                     <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
 
                 <TextBlock
@@ -175,19 +176,30 @@
                 <TextBlock
                     Grid.Row="13" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
-                    Text="鼠标位移" />
+                    Text="捏合距离" />
                 <TextBlock
                     Grid.Row="13" Grid.Column="1"
+                    FontFamily="{StaticResource MonoFont}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    Text="{x:Bind ViewModel.PinchDistanceText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+
+                <TextBlock
+                    Grid.Row="14" Grid.Column="0"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="鼠标位移" />
+                <TextBlock
+                    Grid.Row="14" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
                     Text="{x:Bind ViewModel.MouseDeltaText, Mode=OneWay}" />
 
                 <TextBlock
-                    Grid.Row="14" Grid.Column="0"
+                    Grid.Row="15" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
                     Text="点击/滚轮" />
                 <TextBlock
-                    Grid.Row="14" Grid.Column="1"
+                    Grid.Row="15" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
                     Text="{x:Bind ClickScrollText(ViewModel.ClickCountText, ViewModel.ScrollCountText), Mode=OneWay}" />

@@ -8,10 +8,12 @@ namespace LingXuZhi.App.Views;
 
 public sealed partial class MainPage : Page
 {
+    private bool _helpOpen;
+
     public MainViewModel ViewModel { get; }
 
-    /// <summary>自定义标题栏元素,供 MainWindow.SetTitleBar 注册为拖拽区。</summary>
-    public UIElement TitleBarElement => AppTitleBar;
+    /// <summary>标题栏拖拽区元素,供 MainWindow.SetTitleBar 注册(不含帮助按钮,保证其可点击)。</summary>
+    public UIElement TitleBarElement => DragRegion;
 
     public MainPage()
     {
@@ -24,6 +26,22 @@ public sealed partial class MainPage : Page
             // 初始化期间控件获焦可能把右栏滚走,恢复到顶部
             RightPanelScroll.ChangeView(null, 0, null, disableAnimation: true);
         };
+    }
+
+    private async void OnHelpClick(object sender, RoutedEventArgs e)
+    {
+        if (_helpOpen)
+            return;
+        _helpOpen = true;
+        try
+        {
+            HelpDialog.XamlRoot = XamlRoot;
+            await HelpDialog.ShowAsync();
+        }
+        finally
+        {
+            _helpOpen = false;
+        }
     }
 
     private void LoadTitleLogo()

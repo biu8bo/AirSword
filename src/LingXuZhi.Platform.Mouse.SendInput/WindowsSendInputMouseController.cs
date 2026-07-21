@@ -25,10 +25,22 @@ public sealed class WindowsSendInputMouseController : IMouseController
     public void MoveBy(int dx, int dy)
         => Send(MouseeventfMove, dx, dy, 0);
 
+    public void LeftDown()
+        => Send(MouseeventfLeftdown, 0, 0, 0);
+
+    public void LeftUp()
+        => Send(MouseeventfLeftup, 0, 0, 0);
+
     public void LeftClick()
     {
         Send(MouseeventfLeftdown, 0, 0, 0);
         Send(MouseeventfLeftup, 0, 0, 0);
+    }
+
+    public void DoubleClick()
+    {
+        LeftClick();
+        LeftClick();
     }
 
     public void RightClick()
