@@ -58,12 +58,13 @@ dotnet test tests/LingXuZhi.Core.Tests/LingXuZhi.Core.Tests.csproj
 
 ```bash
 dotnet publish src/LingXuZhi.App/LingXuZhi.App.csproj -c Release -r win-x64 -p:Platform=x64 ^
-  -p:SelfContained=true -p:PublishSingleFile=true ^
+  -p:SelfContained=false -p:PublishSingleFile=true ^
   -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true ^
   -o publish
 ```
 
-产出 `publish/LingXuZhi.App.exe`（约 260MB,自包含 .NET 运行时、WinAppSDK、OpenCV 原生库与 ONNX 模型,无需安装任何依赖）。首次启动会将原生库与模型自解压到临时目录,稍慢属正常现象。
+产出 `publish/LingXuZhi.App.exe`（约 200MB,框架依赖:内含 WinAppSDK、OpenCV 原生库与 ONNX 模型,目标机器需预装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)）。首次启动会将原生库与模型自解压到临时目录,稍慢属正常现象。  
+若想完全免依赖(拷来即用),把 `-p:SelfContained=false` 改为 `true` 即可,体积约 260MB。
 
 ---
 
