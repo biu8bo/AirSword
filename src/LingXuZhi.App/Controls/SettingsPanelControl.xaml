@@ -90,6 +90,55 @@
             <ToggleSwitch
                 Header="启用鼠标仿真(阶段 3 生效)"
                 IsOn="{x:Bind ViewModel.Settings.MouseSimulationEnabled, Mode=TwoWay}" />
+
+            <TextBlock
+                Margin="0,8,0,0"
+                FontSize="14"
+                FontWeight="SemiBold"
+                Foreground="{StaticResource TextPrimaryBrush}"
+                Text="识别" />
+
+            <StackPanel Spacing="4">
+                <Grid>
+                    <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="检测置信度阈值" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontFamily="{StaticResource MonoFont}"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="{x:Bind Format2(ViewModel.Settings.DetectionScoreThreshold), Mode=OneWay}" />
+                </Grid>
+                <Slider
+                    MinHeight="44"
+                    Maximum="0.95"
+                    Minimum="0.1"
+                    StepFrequency="0.05"
+                    Value="{x:Bind ViewModel.Settings.DetectionScoreThreshold, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <Grid>
+                    <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="NMS 阈值" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontFamily="{StaticResource MonoFont}"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="{x:Bind Format2(ViewModel.Settings.NmsThreshold), Mode=OneWay}" />
+                </Grid>
+                <Slider
+                    MinHeight="44"
+                    Maximum="0.9"
+                    Minimum="0.1"
+                    StepFrequency="0.05"
+                    Value="{x:Bind ViewModel.Settings.NmsThreshold, Mode=TwoWay}" />
+            </StackPanel>
+
+            <ToggleSwitch
+                Header="绘制骨架"
+                IsOn="{x:Bind ViewModel.Settings.DrawSkeleton, Mode=TwoWay}" />
+
+            <ToggleSwitch
+                Header="绘制边界框"
+                IsOn="{x:Bind ViewModel.Settings.DrawBoundingBox, Mode=TwoWay}" />
         </StackPanel>
     </Border>
 </UserControl>

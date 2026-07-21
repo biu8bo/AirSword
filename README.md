@@ -46,22 +46,18 @@ LingXuZhi.sln
 │   │   ├── Pipeline/                   # 处理管线编排（帧 → 识别 → 追踪 → 动作）
 │   │   └── Configuration/             # 参数模型（灵敏度、死区、平滑系数等）
 │   │
-│   ├── LingXuZhi.Vision/              # 视觉识别（接口 + ONNX 实现）
-│   │   ├── Abstractions/              # IHandDetector / IHandLandmarker / 视觉数据结构
-│   │   ├── OpenCv/                    # OpenCV DNN ONNX 实现
-│   │   │   ├── PalmDetector.cs        # 手掌检测
-│   │   │   ├── HandLandmarker.cs      # 21 关键点
-│   │   │   ├── Preprocess.cs          # 归一化/resize
-│   │   │   └── Postprocess.cs         # 解码/反归一化/NMS
-│   │   └── MediaPipe/                 # 预留（本期不实现，仅占位 README）
+│   ├── LingXuZhi.Vision.Abstractions/  # 视觉识别接口与数据结构（零实现依赖）
+│   │   └── IHandDetector / IHandLandmarker / ImageFrame / PalmDetection …
+│   │
+│   ├── LingXuZhi.Vision.OpenCv/       # OpenCV DNN ONNX 实现（独立项目）
+│   │   ├── OpenCvPalmDetector / OpenCvHandLandmarker / RoiExtractor
+│   │   └── Models/                    # ONNX 模型文件（随项目输出拷贝）
+│   │
+│   ├── LingXuZhi.Vision.MediaPipe/    # MediaPipe 实现预留（独立项目，本期仅 README）
 │   │
 │   └── LingXuZhi.Platform/           # 平台交互（Windows 实现）
 │       ├── Camera/                    # ICameraSource + OpenCV/MF 实现
 │       └── Mouse/                     # IMouseController + SendInput 实现
-│
-├── assets/models/                     # ONNX 模型文件
-│   ├── palm_detection_mediapipe_2023feb.onnx
-│   └── handpose_estimation_mediapipe_2023feb.onnx
 │
 ├── tests/
 │   ├── LingXuZhi.Core.Tests/
@@ -155,4 +151,4 @@ curl -LO https://github.com/opencv/opencv_zoo/raw/main/models/palm_detection_med
 curl -LO https://github.com/opencv/opencv_zoo/raw/main/models/handpose_estimation_mediapipe/handpose_estimation_mediapipe_2023feb.onnx
 ```
 
-放入 `assets/models/`，构建时拷贝到输出目录（`CopyToOutputDirectory`）。
+放入 `src/LingXuZhi.Vision.OpenCv/Models/`（OpenCV DNN 实现独立项目内，不放外部 assets 目录），构建时拷贝到输出目录 `Models\`（`CopyToOutputDirectory`）。

@@ -2,8 +2,10 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.InteropServices.WindowsRuntime;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LingXuZhi.App.Services;
 using LingXuZhi.Core.Configuration;
 using LingXuZhi.Platform.Camera;
+using LingXuZhi.Vision.Abstractions;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -13,14 +15,22 @@ public sealed record CameraDeviceOption(int Index, string Name);
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
+    private const string LandmarkPlaceholder = "   x: —      y: —      v: —";
+
     private readonly ICameraSource _camera;
+    private readonly HandTrackingService _tracking;
     private readonly DispatcherQueue _dispatcher;
     private readonly DispatcherQueueTimer _statsTimer;
     private readonly object _frameLock = new();
+    private readonly object _resultLock = new();
     private CameraFrame? _pendingFrame;
+    private HandTrackingResult? _pendingResult;
     private int _frameCount;
+    private int _resultCount;
     private long _lastStatsTicks;
     private bool _initialized;
+    private bool _pipelineFaultLogged;
+    private bool _lastDetected;
 
     public AppSettings Settings { get; }
 
@@ -28,9 +38,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<string> Resolutions { get; } = new() { "640 × 480", "1280 × 720", "1920 × 1080" };
 
-    /// <summary>21 个关键点占位行,阶段 2 填充真实坐标。</summary>
+    /// <summary>21 个关键点坐标行,检测到手时实时刷新。</summary>
     public ObservableCollection<string> LandmarkLines { get; } = new(
-        Enumerable.Range(0, 21).Select(i => $"P{i:D2}   x: —      y: —      z: —"));
+        Enumerable.Range(0, 21).Select(i => $"P{i:D2}{LandmarkPlaceholder}"));
 
     /// <summary>运行日志,底部日志面板数据源。</summary>
     public ObservableCollection<string> LogLines { get; } = new();
@@ -53,19 +63,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _gestureState = "空闲";
 
+    /// <summary>识别状态:检测到/未检测到/多手警告。</summary>
+    [ObservableProperty]
+    private string _detectionState = "未检测到";
+
+    /// <summary>处理 FPS(识别管线吞吐),与采集 FPS 区分。</summary>
+    [ObservableProperty]
+    private string _processFpsText = "—";
+
+    [ObservableProperty]
+    private string _boundingBoxText = "—";
+
+    [ObservableProperty]
+    private string _rotationText = "—";
+
+    /// <summary>最新识别结果,预览控件叠加层数据源。</summary>
+    [ObservableProperty]
+    private HandTrackingResult? _overlayResult;
+
     [ObservableProperty]
     private CameraDeviceOption? _selectedDevice;
 
     [ObservableProperty]
     private string _selectedResolution = "1280 × 720";
 
-    public MainViewModel(ICameraSource camera, AppSettings settings)
+    public MainViewModel(ICameraSource camera, AppSettings settings, HandTrackingService tracking)
     {
         _camera = camera;
         Settings = settings;
+        _tracking = tracking;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
 
         _camera.FrameArrived += OnFrameArrived;
+        _tracking.ResultReady += OnTrackingResult;
+        _tracking.PipelineFaulted += OnPipelineFaulted;
         Settings.PropertyChanged += OnSettingsChanged;
 
         _lastStatsTicks = Environment.TickCount64;
@@ -83,6 +114,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _initialized = true;
 
         Log("应用启动,正在探测摄像头设备…");
+        _tracking.Start();
+        Log("视觉识别管线已启动(OpenCV DNN,双模型)");
         var devices = await Task.Run(() => _camera.EnumerateDevices());
         foreach (var index in devices)
             CameraDevices.Add(new CameraDeviceOption(index, $"摄像头 {index}"));
@@ -150,6 +183,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         Interlocked.Increment(ref _frameCount);
 
+        // 送识别管线(容量 1,处理慢时自动丢旧帧)
+        _tracking.Enqueue(new ImageFrame(frame.Bgra, frame.Width, frame.Height, ImagePixelFormat.Bgra32));
+
         bool queueRender;
         lock (_frameLock)
         {
@@ -159,6 +195,80 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         if (queueRender)
             _dispatcher.TryEnqueue(RenderPendingFrame);
+    }
+
+    private void OnTrackingResult(HandTrackingResult result)
+    {
+        Interlocked.Increment(ref _resultCount);
+
+        bool queueUpdate;
+        lock (_resultLock)
+        {
+            queueUpdate = _pendingResult is null;
+            _pendingResult = result;
+        }
+        if (queueUpdate)
+            _dispatcher.TryEnqueue(ApplyPendingResult);
+    }
+
+    private void OnPipelineFaulted(Exception ex)
+    {
+        if (_pipelineFaultLogged)
+            return;
+        _pipelineFaultLogged = true;
+        Log($"识别管线异常:{ex.Message}");
+    }
+
+    private void ApplyPendingResult()
+    {
+        HandTrackingResult result;
+        lock (_resultLock)
+        {
+            if (_pendingResult is null)
+                return;
+            result = _pendingResult;
+            _pendingResult = null;
+        }
+
+        OverlayResult = result;
+        ProcessingTime = $"检测 {result.DetectMs:F1} + 关键点 {result.LandmarkMs:F1} = {result.TotalMs:F1} ms";
+
+        if (result.Detected)
+        {
+            var palm = result.Palm!;
+            var landmarks = result.Landmarks.Landmarks;
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (var i = 0; i < landmarks.Count && i < 21; i++)
+            {
+                var p = landmarks[i];
+                LandmarkLines[i] = $"P{i:D2}   x: {p.X,6:F1}  y: {p.Y,6:F1}  v: {p.Visibility:F2}";
+                minX = Math.Min(minX, p.X);
+                minY = Math.Min(minY, p.Y);
+                maxX = Math.Max(maxX, p.X);
+                maxY = Math.Max(maxY, p.Y);
+            }
+
+            PalmScore = palm.Score.ToString("F3");
+            // 调试面板显示整手外接框(含手指),与叠加层一致
+            BoundingBoxText = $"({minX:F0}, {minY:F0}) - ({maxX:F0}, {maxY:F0})";
+            RotationText = $"{palm.RotationDegrees:F1}°";
+            DetectionState = result.PalmCount > 1 ? $"检测到 {result.PalmCount} 只手(取最高分)" : "检测到";
+            _lastDetected = true;
+        }
+        else if (_lastDetected)
+        {
+            _lastDetected = false;
+            PalmScore = "—";
+            BoundingBoxText = "—";
+            RotationText = "—";
+            DetectionState = "未检测到";
+            for (var i = 0; i < 21; i++)
+                LandmarkLines[i] = $"P{i:D2}{LandmarkPlaceholder}";
+        }
+        else
+        {
+            DetectionState = "未检测到";
+        }
     }
 
     private void RenderPendingFrame()
@@ -193,8 +303,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastStatsTicks = now;
 
         var frames = Interlocked.Exchange(ref _frameCount, 0);
+        var results = Interlocked.Exchange(ref _resultCount, 0);
         var fps = elapsedMs > 0 ? frames * 1000.0 / elapsedMs : 0;
+        var processFps = elapsedMs > 0 ? results * 1000.0 / elapsedMs : 0;
         FpsText = _camera.IsRunning ? $"FPS {fps:F0}" : "FPS —";
+        ProcessFpsText = _camera.IsRunning ? $"{processFps:F0}" : "—";
     }
 
     private const int MaxLogLines = 500;
@@ -221,5 +334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _statsTimer.Stop();
         Settings.PropertyChanged -= OnSettingsChanged;
         _camera.FrameArrived -= OnFrameArrived;
+        _tracking.ResultReady -= OnTrackingResult;
+        _tracking.PipelineFaulted -= OnPipelineFaulted;
     }
 }

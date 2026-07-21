@@ -27,12 +27,16 @@
                     <RowDefinition />
                     <RowDefinition />
                     <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
 
                 <TextBlock
                     Grid.Row="0" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
-                    Text="状态" />
+                    Text="手势状态" />
                 <TextBlock
                     Grid.Row="0" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
@@ -42,42 +46,84 @@
                 <TextBlock
                     Grid.Row="1" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
-                    Text="FPS" />
+                    Text="识别状态" />
                 <TextBlock
                     Grid.Row="1" Grid.Column="1"
+                    FontFamily="{StaticResource MonoFont}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    Text="{x:Bind ViewModel.DetectionState, Mode=OneWay}" />
+
+                <TextBlock
+                    Grid.Row="2" Grid.Column="0"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="采集 FPS" />
+                <TextBlock
+                    Grid.Row="2" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
                     Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" />
 
                 <TextBlock
-                    Grid.Row="2" Grid.Column="0"
+                    Grid.Row="3" Grid.Column="0"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="处理 FPS" />
+                <TextBlock
+                    Grid.Row="3" Grid.Column="1"
+                    FontFamily="{StaticResource MonoFont}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    Text="{x:Bind ViewModel.ProcessFpsText, Mode=OneWay}" />
+
+                <TextBlock
+                    Grid.Row="4" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
                     Text="帧分辨率" />
                 <TextBlock
-                    Grid.Row="2" Grid.Column="1"
+                    Grid.Row="4" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
                     Text="{x:Bind ViewModel.FrameResolution, Mode=OneWay}" />
 
                 <TextBlock
-                    Grid.Row="3" Grid.Column="0"
+                    Grid.Row="5" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
                     Text="处理耗时" />
                 <TextBlock
-                    Grid.Row="3" Grid.Column="1"
+                    Grid.Row="5" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
-                    Text="{x:Bind ViewModel.ProcessingTime, Mode=OneWay}" />
+                    Text="{x:Bind ViewModel.ProcessingTime, Mode=OneWay}"
+                    TextWrapping="Wrap" />
 
                 <TextBlock
-                    Grid.Row="4" Grid.Column="0"
+                    Grid.Row="6" Grid.Column="0"
                     Foreground="{StaticResource TextSecondaryBrush}"
                     Text="手掌置信度" />
                 <TextBlock
-                    Grid.Row="4" Grid.Column="1"
+                    Grid.Row="6" Grid.Column="1"
                     FontFamily="{StaticResource MonoFont}"
                     Foreground="{StaticResource TextPrimaryBrush}"
                     Text="{x:Bind ViewModel.PalmScore, Mode=OneWay}" />
+
+                <TextBlock
+                    Grid.Row="7" Grid.Column="0"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="边界框" />
+                <TextBlock
+                    Grid.Row="7" Grid.Column="1"
+                    FontFamily="{StaticResource MonoFont}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    Text="{x:Bind ViewModel.BoundingBoxText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+
+                <TextBlock
+                    Grid.Row="8" Grid.Column="0"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="旋转角" />
+                <TextBlock
+                    Grid.Row="8" Grid.Column="1"
+                    FontFamily="{StaticResource MonoFont}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    Text="{x:Bind ViewModel.RotationText, Mode=OneWay}" />
             </Grid>
 
             <TextBlock

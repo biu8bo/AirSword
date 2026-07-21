@@ -33,4 +33,18 @@ public partial class AppSettings : ObservableObject
     /// <summary>启用鼠标仿真(阶段 3 生效,本阶段仅 UI)。</summary>
     [ObservableProperty]
     private bool _mouseSimulationEnabled;
+
+    /// <summary>手掌检测分数阈值,调高后远/小的手不识别。</summary>
+    [ObservableProperty]
+    private double _detectionScoreThreshold = 0.5;
+
+    /// <summary>手掌检测 NMS IoU 阈值。</summary>
+    [ObservableProperty]
+    private double _nmsThreshold = 0.3;
+
+    [ObservableProperty]
+    private bool _drawSkeleton = true;
+
+    [ObservableProperty]
+    private bool _drawBoundingBox = true;
 }

@@ -28,7 +28,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LingXuZhi.Core\LingXuZhi.Core.csproj" />
-    <ProjectReference Include="..\LingXuZhi.Vision\LingXuZhi.Vision.csproj" />
+    <ProjectReference Include="..\LingXuZhi.Vision.Abstractions\LingXuZhi.Vision.Abstractions.csproj" />
+    <ProjectReference Include="..\LingXuZhi.Vision.OpenCv\LingXuZhi.Vision.OpenCv.csproj" />
     <ProjectReference Include="..\LingXuZhi.Platform\LingXuZhi.Platform.csproj" />
   </ItemGroup>
 

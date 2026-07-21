@@ -2,18 +2,23 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <RootNamespace>LingXuZhi.Vision</RootNamespace>
+    <RootNamespace>LingXuZhi.Vision.OpenCv</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.*" />
     <PackageReference Include="OpenCvSharp4" Version="4.*" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LingXuZhi.Core\LingXuZhi.Core.csproj" />
+    <ProjectReference Include="..\LingXuZhi.Vision.Abstractions\LingXuZhi.Vision.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ONNX 模型随 OpenCv 实现项目输出,App 引用后透传拷贝到 Models\ -->
+    <None Include="Models\*.onnx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
