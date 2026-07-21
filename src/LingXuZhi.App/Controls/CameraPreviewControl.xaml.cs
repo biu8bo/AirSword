@@ -4,6 +4,7 @@ using LingXuZhi.App.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Shapes;
 using Microsoft.UI.Text;
 using Windows.Foundation;
@@ -29,6 +30,18 @@ public sealed partial class CameraPreviewControl : UserControl
     /// <summary>整手包围框相对关键点范围的外边距比例。</summary>
     private const float HandBoxPadding = 0.12f;
 
+    // 边界框时间平滑(EMA):位置响应稍快,尺寸/角度更稳,抑制逐帧检测噪声导致的抖动
+    private const double BoxCenterAlpha = 0.35;
+    private const double BoxSizeAlpha = 0.18;
+    private const double BoxAngleAlpha = 0.25;
+
+    private bool _boxSmoothingValid;
+    private double _smBoxCx;
+    private double _smBoxCy;
+    private double _smBoxHalfU;
+    private double _smBoxHalfV;
+    private double _smBoxAngle;
+
     private readonly Line[] _boneLines = new Line[Bones.Length];
     private readonly Ellipse[] _landmarkDots = new Ellipse[21];
     private readonly Ellipse[] _palmDots = new Ellipse[7];
@@ -37,10 +50,20 @@ public sealed partial class CameraPreviewControl : UserControl
 
     public MainViewModel ViewModel { get; }
 
+    public Visibility LoadingVisibility(bool isPreviewReady)
+        => isPreviewReady ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility ReadyVisibility(bool isPreviewReady)
+        => isPreviewReady ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool NotReady(bool isPreviewReady) => !isPreviewReady;
+
     public CameraPreviewControl()
     {
         ViewModel = App.Container.Resolve<MainViewModel>();
         InitializeComponent();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
 
         // 主题色:骨架用 Accent 蓝加亮;整手框用 Warning 琥珀,与骨架区分
         var accent = Color.FromArgb(0xFF, 0x3B, 0x82, 0xF6);
@@ -122,6 +145,8 @@ public sealed partial class CameraPreviewControl : UserControl
         {
             if (e.PropertyName is nameof(MainViewModel.OverlayResult))
                 UpdateOverlay();
+            else if (e.PropertyName is nameof(MainViewModel.IsPreviewReady))
+                SyncLoadingAnimation();
         };
         ViewModel.Settings.PropertyChanged += (_, e) =>
         {
@@ -129,6 +154,49 @@ public sealed partial class CameraPreviewControl : UserControl
                 or nameof(LingXuZhi.Core.Configuration.AppSettings.DrawBoundingBox))
                 UpdateOverlay();
         };
+    }
+
+    private Storyboard? _loadingPulse;
+
+    private void OnLoaded(object sender, RoutedEventArgs e) => SyncLoadingAnimation();
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => StopLoadingPulse();
+
+    private void SyncLoadingAnimation()
+    {
+        if (ViewModel.IsPreviewReady)
+            StopLoadingPulse();
+        else
+            StartLoadingPulse();
+    }
+
+    private void StartLoadingPulse()
+    {
+        if (_loadingPulse is not null)
+            return;
+
+        _loadingPulse = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        var fade = new DoubleAnimation
+        {
+            From = 0.45,
+            To = 1.0,
+            Duration = TimeSpan.FromMilliseconds(900),
+            AutoReverse = true,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        Storyboard.SetTarget(fade, LoadingLabel);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        _loadingPulse.Children.Add(fade);
+        _loadingPulse.Begin();
+    }
+
+    private void StopLoadingPulse()
+    {
+        if (_loadingPulse is null)
+            return;
+        _loadingPulse.Stop();
+        _loadingPulse = null;
+        LoadingLabel.Opacity = 1;
     }
 
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs e) => UpdateOverlay();
@@ -166,19 +234,23 @@ public sealed partial class CameraPreviewControl : UserControl
             {
                 DrawLandmarkHandBox(result.Landmarks.Landmarks, palm.RotationDegrees, Map);
                 _confidenceText.Text = $"hand {result.Landmarks.Confidence:F2}";
-                var (ax, ay) = LandmarkTopLeft(result.Landmarks.Landmarks);
-                var anchor = Map(ax, ay);
-                Canvas.SetLeft(_confidenceText, anchor.X);
-                Canvas.SetTop(_confidenceText, anchor.Y - 24);
             }
             else
             {
+                _boxSmoothingValid = false;
                 DrawRotatedRect(palm.X1, palm.Y1, palm.X2, palm.Y2, palm.RotationDegrees, Map);
                 _confidenceText.Text = $"palm {palm.Score:F2}";
-                var anchor = Map(Math.Min(palm.X1, palm.X2), Math.Min(palm.Y1, palm.Y2));
-                Canvas.SetLeft(_confidenceText, anchor.X);
-                Canvas.SetTop(_confidenceText, anchor.Y - 24);
             }
+
+            // 文本锚定到(平滑后)框的最上角,与框同步移动不跳动
+            double anchorX = double.MaxValue, anchorY = double.MaxValue;
+            foreach (var pt in _boundingBox.Points)
+            {
+                anchorX = Math.Min(anchorX, pt.X);
+                anchorY = Math.Min(anchorY, pt.Y);
+            }
+            Canvas.SetLeft(_confidenceText, anchorX);
+            Canvas.SetTop(_confidenceText, anchorY - 24);
 
             _boundingBox.Visibility = Visibility.Visible;
             _confidenceText.Visibility = Visibility.Visible;
@@ -188,6 +260,7 @@ public sealed partial class CameraPreviewControl : UserControl
         }
         else
         {
+            _boxSmoothingValid = false;
             _boundingBox.Visibility = Visibility.Collapsed;
             _confidenceText.Visibility = Visibility.Collapsed;
             foreach (var dot in _palmDots)
@@ -222,7 +295,7 @@ public sealed partial class CameraPreviewControl : UserControl
     }
 
     /// <summary>
-    /// 将 21 关键点投影到手掌旋转坐标系,求带边距的 AABB,再逆变换回图像坐标绘制整手框。
+    /// 将 21 关键点投影到手掌旋转坐标系,求带边距的 AABB,经 EMA 时间平滑后逆变换回图像坐标绘制整手框。
     /// </summary>
     private void DrawLandmarkHandBox(
         IReadOnlyList<LingXuZhi.Vision.Abstractions.Point2D> landmarks,
@@ -239,8 +312,8 @@ public sealed partial class CameraPreviewControl : UserControl
         cy /= landmarks.Count;
 
         // 与手掌竖直方向对齐的局部坐标(u,v)
-        var rad = -rotationDegrees * Math.PI / 180.0;
-        double cos = Math.Cos(rad), sin = Math.Sin(rad);
+        var rawRad = -rotationDegrees * Math.PI / 180.0;
+        double rawCos = Math.Cos(rawRad), rawSin = Math.Sin(rawRad);
 
         double minU = double.MaxValue, minV = double.MaxValue;
         double maxU = double.MinValue, maxV = double.MinValue;
@@ -248,27 +321,56 @@ public sealed partial class CameraPreviewControl : UserControl
         {
             var dx = p.X - cx;
             var dy = p.Y - cy;
-            var u = dx * cos + dy * sin;
-            var v = -dx * sin + dy * cos;
+            var u = dx * rawCos + dy * rawSin;
+            var v = -dx * rawSin + dy * rawCos;
             minU = Math.Min(minU, u);
             minV = Math.Min(minV, v);
             maxU = Math.Max(maxU, u);
             maxV = Math.Max(maxV, v);
         }
 
-        var padU = Math.Max((maxU - minU) * HandBoxPadding, 8);
-        var padV = Math.Max((maxV - minV) * HandBoxPadding, 8);
-        minU -= padU;
-        maxU += padU;
-        minV -= padV;
-        maxV += padV;
+        var halfU = (maxU - minU) / 2;
+        var halfV = (maxV - minV) / 2;
+        halfU += Math.Max(halfU * 2 * HandBoxPadding, 8);
+        halfV += Math.Max(halfV * 2 * HandBoxPadding, 8);
 
-        // 局部四角逆旋转回图像坐标
-        _boundingBox.Points.Clear();
-        foreach (var (u, v) in new[] { (minU, minV), (maxU, minV), (maxU, maxV), (minU, maxV) })
+        // AABB 在局部坐标系可能不以 (cx,cy) 为中心,把框中心换算回图像坐标后再平滑
+        var midU = (minU + maxU) / 2;
+        var midV = (minV + maxV) / 2;
+        var boxCx = cx + midU * rawCos - midV * rawSin;
+        var boxCy = cy + midU * rawSin + midV * rawCos;
+
+        if (!_boxSmoothingValid)
         {
-            var x = (float)(cx + u * cos - v * sin);
-            var y = (float)(cy + u * sin + v * cos);
+            _smBoxCx = boxCx;
+            _smBoxCy = boxCy;
+            _smBoxHalfU = halfU;
+            _smBoxHalfV = halfV;
+            _smBoxAngle = rawRad;
+            _boxSmoothingValid = true;
+        }
+        else
+        {
+            _smBoxCx += (boxCx - _smBoxCx) * BoxCenterAlpha;
+            _smBoxCy += (boxCy - _smBoxCy) * BoxCenterAlpha;
+            _smBoxHalfU += (halfU - _smBoxHalfU) * BoxSizeAlpha;
+            _smBoxHalfV += (halfV - _smBoxHalfV) * BoxSizeAlpha;
+
+            // 角度取最短差值平滑,避免 ±180° 跳变
+            var delta = Math.IEEERemainder(rawRad - _smBoxAngle, 2 * Math.PI);
+            _smBoxAngle += delta * BoxAngleAlpha;
+        }
+
+        double cos = Math.Cos(_smBoxAngle), sin = Math.Sin(_smBoxAngle);
+        _boundingBox.Points.Clear();
+        foreach (var (u, v) in new[]
+                 {
+                     (-_smBoxHalfU, -_smBoxHalfV), (_smBoxHalfU, -_smBoxHalfV),
+                     (_smBoxHalfU, _smBoxHalfV), (-_smBoxHalfU, _smBoxHalfV),
+                 })
+        {
+            var x = (float)(_smBoxCx + u * cos - v * sin);
+            var y = (float)(_smBoxCy + u * sin + v * cos);
             _boundingBox.Points.Add(map(x, y));
         }
     }
@@ -293,17 +395,6 @@ public sealed partial class CameraPreviewControl : UserControl
         }
     }
 
-    private static (float X, float Y) LandmarkTopLeft(IReadOnlyList<LingXuZhi.Vision.Abstractions.Point2D> landmarks)
-    {
-        float minX = float.MaxValue, minY = float.MaxValue;
-        foreach (var p in landmarks)
-        {
-            minX = Math.Min(minX, p.X);
-            minY = Math.Min(minY, p.Y);
-        }
-        return (minX, minY);
-    }
-
     private static void PlaceDot(Ellipse dot, Point center)
     {
         Canvas.SetLeft(dot, center.X - dot.Width / 2);
@@ -313,6 +404,7 @@ public sealed partial class CameraPreviewControl : UserControl
 
     private void HideAll()
     {
+        _boxSmoothingValid = false;
         _boundingBox.Visibility = Visibility.Collapsed;
         _confidenceText.Visibility = Visibility.Collapsed;
         foreach (var line in _boneLines)

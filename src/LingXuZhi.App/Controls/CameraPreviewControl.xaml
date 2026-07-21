@@ -13,6 +13,30 @@
         <!-- 骨架/边界框叠加层,代码后置绘制 -->
         <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False" />
 
+        <!-- 摄像头未出画:Loading -->
+        <Grid
+            x:Name="LoadingOverlay"
+            Visibility="{x:Bind LoadingVisibility(ViewModel.IsPreviewReady), Mode=OneWay}">
+            <Border Background="#CC0B1120" />
+            <StackPanel
+                x:Name="LoadingContent"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="16">
+                <ProgressRing
+                    Width="48"
+                    Height="48"
+                    IsActive="{x:Bind NotReady(ViewModel.IsPreviewReady), Mode=OneWay}"
+                    Foreground="{StaticResource AccentBrush}" />
+                <TextBlock
+                    x:Name="LoadingLabel"
+                    HorizontalAlignment="Center"
+                    FontSize="14"
+                    Foreground="{StaticResource TextSecondaryBrush}"
+                    Text="正在启动摄像头…" />
+            </StackPanel>
+        </Grid>
+
         <!-- 左下角:分辨率 / FPS 叠加 -->
         <Border
             Margin="12"
@@ -20,7 +44,8 @@
             HorizontalAlignment="Left"
             VerticalAlignment="Bottom"
             Background="#B31E293B"
-            CornerRadius="6">
+            CornerRadius="6"
+            Visibility="{x:Bind ReadyVisibility(ViewModel.IsPreviewReady), Mode=OneWay}">
             <StackPanel Orientation="Horizontal" Spacing="16">
                 <TextBlock
                     FontFamily="{StaticResource MonoFont}"

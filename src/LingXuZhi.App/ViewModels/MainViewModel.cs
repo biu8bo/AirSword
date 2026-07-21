@@ -81,6 +81,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private HandTrackingResult? _overlayResult;
 
+    /// <summary>首帧出画前为 false,预览区显示 Loading。</summary>
+    [ObservableProperty]
+    private bool _isPreviewReady;
+
     [ObservableProperty]
     private CameraDeviceOption? _selectedDevice;
 
@@ -168,6 +172,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var height = Settings.FrameHeight;
         var mirror = Settings.Mirror;
 
+        IsPreviewReady = false;
         Log($"启动摄像头 {index}({width} × {height})");
 
         // Stop 会 Join 采集线程,放后台执行避免卡 UI
@@ -294,6 +299,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         using (var stream = PreviewBitmap.PixelBuffer.AsStream())
             stream.Write(frame.Bgra, 0, frame.Bgra.Length);
         PreviewBitmap.Invalidate();
+
+        if (!IsPreviewReady)
+            IsPreviewReady = true;
     }
 
     private void UpdateStats()
