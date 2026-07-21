@@ -2,9 +2,9 @@ namespace LingXuZhi.Core.Gestures;
 
 /// <summary>
 /// 带去抖的手势状态机。
-/// 拇指-食指捏合进入 PinchPending:原地松开为单击(延迟一个双击窗口确认)、
-/// 窗口内再次捏合并松开为双击、捏住移动超过阈值转为拖拽(LeftDown…Move…LeftUp)。
-/// 张开手掌进入滚轮:五指张开持续上滚,拇指内收持续下滚。
+/// 拇指-食指捏合进入 PinchPending:原地松开立即单击,捏住移动超过阈值转为拖拽。
+/// 食中指尖并拢进入右键;张开手掌进入滚轮(拇指定向)。
+/// 双击不单独做手势——连续两次单击由系统自行识别。
 /// </summary>
 public sealed class GestureStateMachine
 {
@@ -12,7 +12,6 @@ public sealed class GestureStateMachine
 
     private readonly Func<int> _debounceFrames;
     private readonly Func<double> _dragThreshold;
-    private readonly Func<int> _doublePinchWindowMs;
     private readonly Func<long> _clock;
 
     private MachineState _state = MachineState.Idle;
@@ -23,8 +22,6 @@ public sealed class GestureStateMachine
 
     private readonly Queue<MouseActionKind> _events = new();
     private Vec2 _pinchAnchor;
-    private bool _doubleCandidate;
-    private long _pendingClickAt = -1;
     private long _nextScrollAt;
 
     public MachineState State => _state;
@@ -34,16 +31,14 @@ public sealed class GestureStateMachine
     public GestureStateMachine(
         Func<int> debounceFrames,
         Func<double>? dragThreshold = null,
-        Func<int>? doublePinchWindowMs = null,
         Func<long>? clock = null)
     {
         _debounceFrames = debounceFrames;
-        _dragThreshold = dragThreshold ?? (() => 0.03);
-        _doublePinchWindowMs = doublePinchWindowMs ?? (() => 350);
+        _dragThreshold = dragThreshold ?? (() => 0.05);
         _clock = clock ?? (() => Environment.TickCount64);
     }
 
-    public GestureStateMachine(int debounceFrames = 3)
+    public GestureStateMachine(int debounceFrames = 2)
         : this(() => debounceFrames)
     {
     }
@@ -57,13 +52,6 @@ public sealed class GestureStateMachine
         var now = _clock();
         ApplyTransition(obs, smoothedPointer, now);
 
-        // 单击延迟确认:双击窗口内没有第二次捏合,补发单击
-        if (_pendingClickAt >= 0 && now - _pendingClickAt >= _doublePinchWindowMs())
-        {
-            _pendingClickAt = -1;
-            _events.Enqueue(MouseActionKind.LeftClick);
-        }
-
         var action = MouseActionKind.None;
         var scrollDelta = 0;
 
@@ -76,11 +64,6 @@ public sealed class GestureStateMachine
             switch (_state)
             {
                 case MachineState.Moving:
-                    // 点击待定期间冻结指针,保证单击/双击落点不漂移
-                    if (_pendingClickAt < 0)
-                        action = MouseActionKind.Move;
-                    break;
-
                 case MachineState.Dragging:
                     action = MouseActionKind.Move;
                     break;
@@ -113,15 +96,14 @@ public sealed class GestureStateMachine
         => Update(obs, obs.PointerNormalized);
 
     /// <summary>
-    /// 手部丢失时复位。返回需要补发的收尾动作:
-    /// 拖拽中断补 LeftUp,待定单击补 LeftClick。
+    /// 手部丢失时复位。拖拽中断补 LeftUp;捏合待定中丢手补 LeftClick。
     /// </summary>
     public MouseActionKind Reset()
     {
         var flush = MouseActionKind.None;
         if (_state == MachineState.Dragging)
             flush = MouseActionKind.LeftUp;
-        else if (_pendingClickAt >= 0 || _doubleCandidate)
+        else if (_state == MachineState.PinchPending)
             flush = MouseActionKind.LeftClick;
 
         _state = MachineState.Idle;
@@ -129,8 +111,6 @@ public sealed class GestureStateMachine
         _pendingCount = 0;
         _rightClickConsumed = false;
         _events.Clear();
-        _doubleCandidate = false;
-        _pendingClickAt = -1;
         LastTransition = "Reset → Idle";
         _lastEmitted = MachineState.Idle;
         return flush;
@@ -147,39 +127,25 @@ public sealed class GestureStateMachine
                 ResetDebounce(obs.Kind);
                 if (smoothedPointer.DistanceTo(_pinchAnchor) > (float)_dragThreshold())
                 {
-                    if (_doubleCandidate)
-                    {
-                        // 前一次捏合是独立单击,先补发再进入拖拽
-                        _events.Enqueue(MouseActionKind.LeftClick);
-                        _doubleCandidate = false;
-                    }
                     _events.Enqueue(MouseActionKind.LeftDown);
                     TransitionTo(MachineState.Dragging);
                 }
                 return;
             }
 
-            if (!DebounceReached(obs.Kind))
+            // 退出捏合用更短去抖(至少 1 帧),避免快速捏合松开被漏掉
+            if (!DebounceReached(obs.Kind, exitPinch: true))
                 return;
 
-            // 拇食捏合过程中中指跟着靠拢 → 实为三指捏合(右键),不是一次左键点击
+            // 捏合待定中途变成右键(比耶并拢) → 取消单击,直接转右键
             if (target == MachineState.RightClick)
             {
-                _doubleCandidate = false;
                 TransitionTo(target);
                 return;
             }
 
-            // 原地松开:窗口内第二次捏合 → 双击;否则挂起等窗口确认单击
-            if (_doubleCandidate)
-            {
-                _events.Enqueue(MouseActionKind.DoubleClick);
-                _doubleCandidate = false;
-            }
-            else
-            {
-                _pendingClickAt = now;
-            }
+            // 原地松开 → 立即单击(不做双击窗口)
+            _events.Enqueue(MouseActionKind.LeftClick);
             TransitionTo(target);
             return;
         }
@@ -192,7 +158,7 @@ public sealed class GestureStateMachine
                 return;
             }
 
-            if (!DebounceReached(obs.Kind))
+            if (!DebounceReached(obs.Kind, exitPinch: true))
                 return;
 
             _events.Enqueue(MouseActionKind.LeftUp);
@@ -210,18 +176,7 @@ public sealed class GestureStateMachine
             return;
 
         if (target == MachineState.PinchPending)
-        {
             _pinchAnchor = smoothedPointer;
-            if (_pendingClickAt >= 0 && now - _pendingClickAt <= _doublePinchWindowMs())
-            {
-                _doubleCandidate = true;
-                _pendingClickAt = -1;
-            }
-            else
-            {
-                _doubleCandidate = false;
-            }
-        }
 
         if (target == MachineState.Scroll)
             _nextScrollAt = now;
@@ -245,7 +200,8 @@ public sealed class GestureStateMachine
         return (MouseActionKind.Scroll, direction);
     }
 
-    private bool DebounceReached(GestureKind kind)
+    /// <param name="exitPinch">退出捏合/拖拽时用更短阈值(默认去抖减 1,至少 1)。</param>
+    private bool DebounceReached(GestureKind kind, bool exitPinch = false)
     {
         if (_pendingKind != kind)
         {
@@ -257,7 +213,11 @@ public sealed class GestureStateMachine
             _pendingCount++;
         }
 
-        if (_pendingCount >= Math.Max(1, _debounceFrames()))
+        var need = Math.Max(1, _debounceFrames());
+        if (exitPinch)
+            need = Math.Max(1, need - 1);
+
+        if (_pendingCount >= need)
         {
             _pendingCount = 0;
             return true;

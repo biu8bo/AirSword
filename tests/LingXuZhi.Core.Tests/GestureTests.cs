@@ -99,13 +99,12 @@ public class FingerGeometryTests
         return pts;
     }
 
-    /// <summary>拇指+食指+中指三指捏合。</summary>
+    /// <summary>比耶并拢:食中伸直且指尖靠拢(右键),拇指张开远离食指。</summary>
     internal static Vec2[] PinchRight()
     {
-        var pts = FlatHand();
-        pts[4] = new Vec2(0.490f, 0.250f);
-        pts[8] = new Vec2(0.492f, 0.250f);
-        pts[12] = new Vec2(0.494f, 0.250f); // three tips together
+        var pts = VictorySign();
+        pts[8] = new Vec2(0.490f, 0.22f);
+        pts[12] = new Vec2(0.495f, 0.22f); // tips almost overlapping
         return pts;
     }
 
@@ -180,7 +179,7 @@ public class GestureRecognizerTests
     }
 
     [Fact]
-    public void Recognize_PinchRight_ThreeFingers()
+    public void Recognize_PinchRight_VictoryTipsClose()
     {
         var obs = _sut.Recognize(FingerGeometryTests.PinchRight());
         Assert.Equal(GestureKind.PinchRight, obs.Kind);
@@ -189,7 +188,7 @@ public class GestureRecognizerTests
     [Fact]
     public void Recognize_ThumbMiddleOnly_IsNotRightClick()
     {
-        // 右键需三指捏合,仅拇中捏合不触发
+        // 右键需食中伸直并拢,仅拇中捏合不触发
         var obs = _sut.Recognize(FingerGeometryTests.ThumbMiddleOnlyPinch());
         Assert.NotEqual(GestureKind.PinchRight, obs.Kind);
         Assert.NotEqual(GestureKind.PinchLeft, obs.Kind);
@@ -207,8 +206,8 @@ public class GestureStateMachineTests
 {
     private long _now;
 
-    private GestureStateMachine Create(int debounce = 1, double dragThreshold = 0.03, int windowMs = 350)
-        => new(() => debounce, () => dragThreshold, () => windowMs, () => _now);
+    private GestureStateMachine Create(int debounce = 1, double dragThreshold = 0.03)
+        => new(() => debounce, () => dragThreshold, () => _now);
 
     private static GestureObservation Obs(GestureKind kind, float x = 0.5f, float y = 0.5f)
         => new(kind, new Vec2(x, y), new Vec2(0.5f, 0.6f), 0.02f, 0.5f);
@@ -229,7 +228,7 @@ public class GestureStateMachineTests
     }
 
     [Fact]
-    public void QuickPinchRelease_EmitsSingleClick_AfterWindow()
+    public void QuickPinchRelease_EmitsLeftClickImmediately()
     {
         var sm = Create();
         var pos = new Vec2(0.5f, 0.5f);
@@ -240,33 +239,25 @@ public class GestureStateMachineTests
 
         var release = sm.Update(Obs(GestureKind.Pointer), pos);
         Assert.Equal(MachineState.Moving, release.State);
-        Assert.Equal(MouseActionKind.None, release.Action); // 双击窗口内挂起
-
-        _now += 400; // 窗口过期
-        var fired = sm.Update(Obs(GestureKind.Pointer), pos);
-        Assert.Equal(MouseActionKind.LeftClick, fired.Action);
+        Assert.Equal(MouseActionKind.LeftClick, release.Action);
 
         var after = sm.Update(Obs(GestureKind.Pointer), pos);
         Assert.Equal(MouseActionKind.Move, after.Action);
     }
 
     [Fact]
-    public void TwoQuickPinches_EmitDoubleClick()
+    public void TwoQuickPinches_EmitTwoLeftClicks()
     {
         var sm = Create();
         var pos = new Vec2(0.5f, 0.5f);
 
         sm.Update(Obs(GestureKind.PinchLeft), pos);
-        sm.Update(Obs(GestureKind.Pointer), pos); // 第一次松开
+        var first = sm.Update(Obs(GestureKind.Pointer), pos);
+        Assert.Equal(MouseActionKind.LeftClick, first.Action);
 
-        _now += 100; // 窗口内二次捏合
         sm.Update(Obs(GestureKind.PinchLeft), pos);
-        var release = sm.Update(Obs(GestureKind.Pointer), pos);
-        Assert.Equal(MouseActionKind.DoubleClick, release.Action);
-
-        _now += 500;
-        var idle = sm.Update(Obs(GestureKind.Pointer), pos);
-        Assert.Equal(MouseActionKind.Move, idle.Action); // 无残留单击
+        var second = sm.Update(Obs(GestureKind.Pointer), pos);
+        Assert.Equal(MouseActionKind.LeftClick, second.Action);
     }
 
     [Fact]
@@ -300,6 +291,14 @@ public class GestureStateMachineTests
     }
 
     [Fact]
+    public void Reset_WhilePinchPending_FlushesLeftClick()
+    {
+        var sm = Create();
+        sm.Update(Obs(GestureKind.PinchLeft), new Vec2(0.5f, 0.5f));
+        Assert.Equal(MouseActionKind.LeftClick, sm.Reset());
+    }
+
+    [Fact]
     public void RightClick_FiresOnceUntilRelease()
     {
         var sm = Create();
@@ -314,22 +313,18 @@ public class GestureStateMachineTests
     }
 
     [Fact]
-    public void PinchLeftThenThreeFingers_BecomesRightClick_WithoutLeftClick()
+    public void PinchLeftThenVictoryClose_BecomesRightClick_WithoutLeftClick()
     {
         var sm = Create();
         var pos = new Vec2(0.5f, 0.5f);
 
-        // 三指捏合成形过程:先识别到拇食捏合,再变为三指捏合
         sm.Update(Obs(GestureKind.PinchLeft), pos);
         var right = sm.Update(Obs(GestureKind.PinchRight), pos);
         Assert.Equal(MachineState.RightClick, right.State);
         Assert.Equal(MouseActionKind.RightClick, right.Action);
 
-        // 松开并等待双击窗口过期,不应补发左键单击
-        sm.Update(Obs(GestureKind.Idle), pos);
-        _now += 500;
         var after = sm.Update(Obs(GestureKind.Idle), pos);
-        Assert.Equal(MouseActionKind.None, after.Action);
+        Assert.NotEqual(MouseActionKind.LeftClick, after.Action);
     }
 
     [Fact]

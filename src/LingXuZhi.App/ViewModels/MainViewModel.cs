@@ -284,7 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SmoothedPointerText = $"{action.SmoothedNormalized.X:F3}, {action.SmoothedNormalized.Y:F3}";
         DeadZoneText = action.InDeadZone ? "命中" : "否";
         PinchDistanceText = action.PinchLeftDistance < 10
-            ? $"食 {action.PinchLeftDistance:F3} · 中 {action.PinchRightDistance:F3} / 阈 {Settings.PinchThreshold:F2}"
+            ? $"拇食 {action.PinchLeftDistance:F3} · 食中 {action.PinchRightDistance:F3} / 阈 {Settings.PinchThreshold:F2}"
             : "—";
         MouseDeltaText = $"{_gestures.LastMouseDx:F1}, {_gestures.LastMouseDy:F1}";
         ScrollCountText = _gestures.ScrollEventCount.ToString();
@@ -332,7 +332,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MachineState.Moving => "食指·移动",
         MachineState.PinchPending => "捏合·待定(单击/拖拽)",
         MachineState.Dragging => "捏合·拖拽中",
-        MachineState.RightClick => "三指捏合·右键",
+        MachineState.RightClick => "比耶并拢·右键",
         MachineState.Scroll => action.ObservedGesture == GestureKind.OpenPalmThumbIn ? "四指张开·下滚" : "五指张开·上滚",
         _ => action.ObservedGesture switch
         {

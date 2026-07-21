@@ -222,17 +222,12 @@
                             FontSize="13"
                             Foreground="{StaticResource TextPrimaryBrush}"
                             TextWrapping="Wrap">
-                            <Run Text="• 单击:原地捏合后松开(中指勿一起靠拢,否则是右键)" />
+                            <Run Text="• 单击:原地捏合后松开,立即触发左键" />
                             <LineBreak />
-                            <Run Text="• 双击:快速两次原地捏合" />
+                            <Run Text="• 双击:快速连续两次单击即可(与普通鼠标相同,无需专用手势)" />
                             <LineBreak />
                             <Run Text="• 拖拽:捏住并移动,松开即释放" />
                         </TextBlock>
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{StaticResource TextSecondaryBrush}"
-                            Text="提示:单击会延迟约 0.35 秒发出,用于等待可能的第二次捏合。"
-                            TextWrapping="Wrap" />
                     </StackPanel>
 
                     <StackPanel Spacing="4">
@@ -240,11 +235,11 @@
                             FontSize="14"
                             FontWeight="SemiBold"
                             Foreground="{StaticResource AccentBrush}"
-                            Text="三指捏合 · 右键" />
+                            Text="比耶并拢 · 右键" />
                         <TextBlock
                             FontSize="13"
                             Foreground="{StaticResource TextPrimaryBrush}"
-                            Text="拇指、食指、中指三个指尖捏合到一起,触发一次右键单击;捏住不放不会连点,无名指、小指姿态任意。"
+                            Text="食指与中指伸直做比耶,再把两指尖并拢一下,触发一次右键;并拢不放不会连点。无名指、小指宜收起,避免被识别成滚轮。"
                             TextWrapping="Wrap" />
                     </StackPanel>
 

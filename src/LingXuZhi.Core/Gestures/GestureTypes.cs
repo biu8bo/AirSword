@@ -15,8 +15,8 @@ public enum GestureKind
 {
     Idle,
     Pointer,          // 食指伸直指向 → 移动
-    PinchLeft,        // 拇指-食指捏合 → 左键单击 / 拖拽 / 双击
-    PinchRight,       // 拇指+食指+中指三指捏合 → 右键单击
+    PinchLeft,        // 拇指-食指捏合 → 左键单击 / 拖拽
+    PinchRight,       // 食指+中指伸直后指尖并拢 → 右键单击
     OpenPalm,         // 五指张开(拇指张开)→ 滚轮向上
     OpenPalmThumbIn,  // 四指张开、拇指内收 → 滚轮向下
 }
@@ -33,7 +33,7 @@ public enum MachineState
 {
     Idle,
     Moving,
-    PinchPending,   // 已捏合,等待判定:原地松开=单击/双击,移动=拖拽
+    PinchPending,   // 已捏合,等待判定:原地松开=单击,移动=拖拽
     Dragging,       // 捏合中移动,左键按住
     RightClick,
     Scroll,
@@ -47,7 +47,6 @@ public enum MouseActionKind
     LeftDown,
     LeftUp,
     LeftClick,
-    DoubleClick,
     RightClick,
     Scroll,
 }

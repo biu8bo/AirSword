@@ -35,15 +35,16 @@ public partial class AppSettings : ObservableObject
     private bool _mouseSimulationEnabled = true;
 
     /// <summary>
-    /// 捏合判定阈值(相对手掌宽度,腕→中指根)。
-    /// 指尖关键点在指腹中心,实际捏住时两点距离约为掌宽的 10%~20%,故默认 0.12。
+    /// 捏合/并拢判定阈值(相对手掌宽度,腕→中指根)。
+    /// 指尖关键点在指腹中心,实际捏住时两点距离约为掌宽的 10%~20%,故默认 0.18 偏松。
+    /// 同时用于左键拇食捏合与右键食中并拢。
     /// </summary>
     [ObservableProperty]
-    private double _pinchThreshold = 0.12;
+    private double _pinchThreshold = 0.18;
 
     /// <summary>状态机去抖所需连续帧数。</summary>
     [ObservableProperty]
-    private double _debounceFrames = 3;
+    private double _debounceFrames = 2;
 
     /// <summary>滚轮每次触发滚动行数。</summary>
     [ObservableProperty]
@@ -51,11 +52,7 @@ public partial class AppSettings : ObservableObject
 
     /// <summary>捏合拖拽启动阈值(归一化画面距离):捏住移动超过该值进入拖拽。</summary>
     [ObservableProperty]
-    private double _dragThreshold = 0.03;
-
-    /// <summary>双击窗口(ms):松开后在窗口内再次捏合并松开判定为双击。</summary>
-    [ObservableProperty]
-    private double _doublePinchWindowMs = 350;
+    private double _dragThreshold = 0.05;
 
     /// <summary>手掌检测分数阈值,调高后远/小的手不识别。</summary>
     [ObservableProperty]

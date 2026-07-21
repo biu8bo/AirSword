@@ -28,8 +28,7 @@ public sealed class GestureControlService
         var recognizer = new DefaultGestureRecognizer(() => _settings.PinchThreshold);
         var stateMachine = new GestureStateMachine(
             () => (int)Math.Round(_settings.DebounceFrames),
-            () => _settings.DragThreshold,
-            () => (int)Math.Round(_settings.DoublePinchWindowMs));
+            () => _settings.DragThreshold);
         var smoother = new EmaSmoother(() => Math.Clamp(1.0 - _settings.Smoothing, 0.05, 1.0));
         var deadZone = new DeadZoneFilter(() =>
         {
@@ -126,11 +125,6 @@ public sealed class GestureControlService
             case MouseActionKind.LeftClick:
                 _mouse.LeftClick();
                 ClickEventCount++;
-                break;
-
-            case MouseActionKind.DoubleClick:
-                _mouse.DoubleClick();
-                ClickEventCount += 2;
                 break;
 
             case MouseActionKind.RightClick:
