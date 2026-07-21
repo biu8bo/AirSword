@@ -1,0 +1,6 @@
+<Project>
+  <!-- 限制 NuGet/WinAppSDK 卫星程序集语言目录,避免输出上百个 zh-CN/de-DE/... 文件夹 -->
+  <PropertyGroup>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

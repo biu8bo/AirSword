@@ -30,12 +30,12 @@
                 <ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
 
-            <FontIcon
+            <Image
+                x:Name="TitleLogo"
                 Grid.Column="0"
-                VerticalAlignment="Center"
-                FontSize="17"
-                Foreground="{StaticResource AccentBrush}"
-                Glyph="&#xE7C9;" />
+                Width="22"
+                Height="22"
+                VerticalAlignment="Center" />
 
             <TextBlock
                 Grid.Column="1"

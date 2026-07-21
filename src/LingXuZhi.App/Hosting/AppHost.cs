@@ -3,6 +3,7 @@ using LingXuZhi.App.Services;
 using LingXuZhi.App.ViewModels;
 using LingXuZhi.Core.Configuration;
 using LingXuZhi.Platform.Camera;
+using LingXuZhi.Platform.Mouse;
 using LingXuZhi.Vision.Abstractions;
 using LingXuZhi.Vision.OpenCv;
 
@@ -22,6 +23,9 @@ public static class AppHost
         builder.RegisterType<OpenCvPalmDetector>().As<IHandDetector>().SingleInstance();
         builder.RegisterType<OpenCvHandLandmarker>().As<IHandLandmarker>().SingleInstance();
         builder.RegisterType<HandTrackingService>().SingleInstance();
+
+        builder.RegisterType<WindowsSendInputMouseController>().As<IMouseController>().SingleInstance();
+        builder.RegisterType<GestureControlService>().SingleInstance();
 
         builder.RegisterType<MainViewModel>().SingleInstance();
 

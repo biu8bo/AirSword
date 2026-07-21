@@ -4,6 +4,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LingXuZhi.App.Services;
 using LingXuZhi.Core.Configuration;
+using LingXuZhi.Core.Gestures;
 using LingXuZhi.Platform.Camera;
 using LingXuZhi.Vision.Abstractions;
 using Microsoft.UI.Dispatching;
@@ -19,6 +20,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly ICameraSource _camera;
     private readonly HandTrackingService _tracking;
+    private readonly GestureControlService _gestures;
     private readonly DispatcherQueue _dispatcher;
     private readonly DispatcherQueueTimer _statsTimer;
     private readonly object _frameLock = new();
@@ -77,9 +79,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _rotationText = "—";
 
+    [ObservableProperty]
+    private string _stateTransition = "—";
+
+    [ObservableProperty]
+    private string _rawPointerText = "—";
+
+    [ObservableProperty]
+    private string _smoothedPointerText = "—";
+
+    [ObservableProperty]
+    private string _deadZoneText = "—";
+
+    [ObservableProperty]
+    private string _mouseDeltaText = "—";
+
+    [ObservableProperty]
+    private string _scrollCountText = "0";
+
+    [ObservableProperty]
+    private string _clickCountText = "0";
+
     /// <summary>最新识别结果,预览控件叠加层数据源。</summary>
     [ObservableProperty]
     private HandTrackingResult? _overlayResult;
+
+    /// <summary>最新手势动作(含平滑指针),预览叠加用。</summary>
+    [ObservableProperty]
+    private MouseAction? _lastMouseAction;
 
     /// <summary>首帧出画前为 false,预览区显示 Loading。</summary>
     [ObservableProperty]
@@ -91,17 +118,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _selectedResolution = "1280 × 720";
 
-    public MainViewModel(ICameraSource camera, AppSettings settings, HandTrackingService tracking)
+    public MainViewModel(
+        ICameraSource camera,
+        AppSettings settings,
+        HandTrackingService tracking,
+        GestureControlService gestures)
     {
         _camera = camera;
         Settings = settings;
         _tracking = tracking;
+        _gestures = gestures;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
 
         _camera.FrameArrived += OnFrameArrived;
         _tracking.ResultReady += OnTrackingResult;
         _tracking.PipelineFaulted += OnPipelineFaulted;
         Settings.PropertyChanged += OnSettingsChanged;
+
+        // 全局异常同步到底部日志面板(Log 内部已做线程调度)
+        Diagnostics.GlobalExceptionHandler.OnExceptionLogged = msg => Log($"异常:{msg}");
 
         _lastStatsTicks = Environment.TickCount64;
         _statsTimer = _dispatcher.CreateTimer();
@@ -160,7 +195,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Log($"镜像翻转:{(Settings.Mirror ? "开" : "关")}");
                 break;
             case nameof(AppSettings.MouseSimulationEnabled):
-                Log($"鼠标仿真:{(Settings.MouseSimulationEnabled ? "开(阶段 3 生效)" : "关")}");
+                Log($"鼠标仿真:{(Settings.MouseSimulationEnabled ? "开" : "关")}");
                 break;
         }
     }
@@ -238,6 +273,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OverlayResult = result;
         ProcessingTime = $"检测 {result.DetectMs:F1} + 关键点 {result.LandmarkMs:F1} = {result.TotalMs:F1} ms";
 
+        var action = _gestures.Process(result.Landmarks, result.FrameWidth, result.FrameHeight);
+        LastMouseAction = action;
+        GestureState = FormatGesture(action);
+        StateTransition = _gestures.LastTransition;
+        RawPointerText = $"{action.RawNormalized.X:F3}, {action.RawNormalized.Y:F3}";
+        SmoothedPointerText = $"{action.SmoothedNormalized.X:F3}, {action.SmoothedNormalized.Y:F3}";
+        DeadZoneText = action.InDeadZone ? "命中" : "否";
+        MouseDeltaText = $"{_gestures.LastMouseDx:F1}, {_gestures.LastMouseDy:F1}";
+        ScrollCountText = _gestures.ScrollEventCount.ToString();
+        ClickCountText = _gestures.ClickEventCount.ToString();
+
         if (result.Detected)
         {
             var palm = result.Palm!;
@@ -254,7 +300,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             PalmScore = palm.Score.ToString("F3");
-            // 调试面板显示整手外接框(含手指),与叠加层一致
             BoundingBoxText = $"({minX:F0}, {minY:F0}) - ({maxX:F0}, {maxY:F0})";
             RotationText = $"{palm.RotationDegrees:F1}°";
             DetectionState = result.PalmCount > 1 ? $"检测到 {result.PalmCount} 只手(取最高分)" : "检测到";
@@ -275,6 +320,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DetectionState = "未检测到";
         }
     }
+
+    private static string FormatGesture(MouseAction action) => action.State switch
+    {
+        MachineState.Moving => "剑指·移动",
+        MachineState.LeftClick => "捏合·左键",
+        MachineState.RightClick => "捏合·右键",
+        MachineState.Scroll => "张开·滚轮",
+        _ => action.ObservedGesture switch
+        {
+            GestureKind.Pointer => "剑指(去抖中)",
+            GestureKind.PinchLeft => "左键(去抖中)",
+            GestureKind.PinchRight => "右键(去抖中)",
+            GestureKind.OpenPalm => "张开(去抖中)",
+            _ => "空闲",
+        },
+    };
 
     private void RenderPendingFrame()
     {
@@ -339,6 +400,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        Diagnostics.GlobalExceptionHandler.OnExceptionLogged = null;
         _statsTimer.Stop();
         Settings.PropertyChanged -= OnSettingsChanged;
         _camera.FrameArrived -= OnFrameArrived;

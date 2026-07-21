@@ -18,21 +18,33 @@ public partial class AppSettings : ObservableObject
     [ObservableProperty]
     private bool _mirror = true;
 
-    /// <summary>指针灵敏度倍率。</summary>
+    /// <summary>指针灵敏度倍率(以画面中心为锚放大偏移)。</summary>
     [ObservableProperty]
-    private double _sensitivity = 1.0;
+    private double _sensitivity = 1.5;
 
-    /// <summary>平滑系数,0 = 不平滑,1 = 最大平滑。</summary>
+    /// <summary>平滑强度 0~1:越大越稳。映射 EMA α = 1 - Smoothing。</summary>
     [ObservableProperty]
-    private double _smoothing = 0.5;
+    private double _smoothing = 0.7;
 
-    /// <summary>屏幕中央死区半径(像素)。</summary>
+    /// <summary>屏幕中央死区半径(摄像头画面像素)。</summary>
     [ObservableProperty]
     private double _deadZoneRadius = 40;
 
-    /// <summary>启用鼠标仿真(阶段 3 生效,本阶段仅 UI)。</summary>
+    /// <summary>启用鼠标仿真,默认开启。</summary>
     [ObservableProperty]
-    private bool _mouseSimulationEnabled;
+    private bool _mouseSimulationEnabled = true;
+
+    /// <summary>捏合判定阈值(相对手掌宽度)。</summary>
+    [ObservableProperty]
+    private double _pinchThreshold = 0.05;
+
+    /// <summary>状态机去抖所需连续帧数。</summary>
+    [ObservableProperty]
+    private double _debounceFrames = 3;
+
+    /// <summary>滚轮每次触发滚动行数。</summary>
+    [ObservableProperty]
+    private double _scrollLines = 3;
 
     /// <summary>手掌检测分数阈值,调高后远/小的手不识别。</summary>
     [ObservableProperty]

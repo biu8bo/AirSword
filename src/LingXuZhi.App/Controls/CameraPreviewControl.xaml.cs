@@ -1,6 +1,7 @@
 using Autofac;
 using LingXuZhi.App.Services;
 using LingXuZhi.App.ViewModels;
+using LingXuZhi.Core.Gestures;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -47,6 +48,10 @@ public sealed partial class CameraPreviewControl : UserControl
     private readonly Ellipse[] _palmDots = new Ellipse[7];
     private readonly Polygon _boundingBox;
     private readonly TextBlock _confidenceText;
+    private readonly Ellipse _deadZoneCircle;
+    private readonly Line _crossH;
+    private readonly Line _crossV;
+    private readonly TextBlock _gestureLabel;
 
     public MainViewModel ViewModel { get; }
 
@@ -141,9 +146,39 @@ public sealed partial class CameraPreviewControl : UserControl
         };
         OverlayCanvas.Children.Add(_confidenceText);
 
+        var deadZoneBrush = new SolidColorBrush(Color.FromArgb(0x66, 0xF5, 0x9E, 0x0B));
+        _deadZoneCircle = new Ellipse
+        {
+            Stroke = warningBrush,
+            StrokeThickness = 1.5,
+            StrokeDashArray = new DoubleCollection { 4, 3 },
+            Fill = deadZoneBrush,
+            IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed,
+        };
+        OverlayCanvas.Children.Insert(0, _deadZoneCircle);
+
+        var crossBrush = new SolidColorBrush(Color.FromArgb(0xE6, 0x22, 0xC5, 0x5E));
+        _crossH = new Line { Stroke = crossBrush, StrokeThickness = 2, Visibility = Visibility.Collapsed };
+        _crossV = new Line { Stroke = crossBrush, StrokeThickness = 2, Visibility = Visibility.Collapsed };
+        OverlayCanvas.Children.Add(_crossH);
+        OverlayCanvas.Children.Add(_crossV);
+
+        _gestureLabel = new TextBlock
+        {
+            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = primary,
+            Visibility = Visibility.Collapsed,
+        };
+        OverlayCanvas.Children.Add(_gestureLabel);
+
         ViewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(MainViewModel.OverlayResult))
+            if (e.PropertyName is nameof(MainViewModel.OverlayResult)
+                or nameof(MainViewModel.LastMouseAction)
+                or nameof(MainViewModel.GestureState))
                 UpdateOverlay();
             else if (e.PropertyName is nameof(MainViewModel.IsPreviewReady))
                 SyncLoadingAnimation();
@@ -151,7 +186,8 @@ public sealed partial class CameraPreviewControl : UserControl
         ViewModel.Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(LingXuZhi.Core.Configuration.AppSettings.DrawSkeleton)
-                or nameof(LingXuZhi.Core.Configuration.AppSettings.DrawBoundingBox))
+                or nameof(LingXuZhi.Core.Configuration.AppSettings.DrawBoundingBox)
+                or nameof(LingXuZhi.Core.Configuration.AppSettings.DeadZoneRadius))
                 UpdateOverlay();
         };
     }
@@ -208,28 +244,70 @@ public sealed partial class CameraPreviewControl : UserControl
         var showSkeleton = result is { Detected: true } && settings.DrawSkeleton;
         var showBox = result?.Palm is not null && settings.DrawBoundingBox;
 
-        if (result is null || (!showSkeleton && !showBox))
+        double cw = OverlayCanvas.ActualWidth, ch = OverlayCanvas.ActualHeight;
+        var frameW = result?.FrameWidth ?? PreviewBitmapWidth();
+        var frameH = result?.FrameHeight ?? PreviewBitmapHeight();
+        if (cw <= 0 || ch <= 0 || frameW <= 0)
         {
             HideAll();
             return;
         }
 
-        // Stretch=Uniform 的显示映射:等比缩放 + 居中偏移
-        double cw = OverlayCanvas.ActualWidth, ch = OverlayCanvas.ActualHeight;
-        if (cw <= 0 || ch <= 0 || result.FrameWidth <= 0)
+        var scale = Math.Min(cw / frameW, ch / frameH);
+        var ox = (cw - frameW * scale) / 2;
+        var oy = (ch - frameH * scale) / 2;
+        Point Map(float x, float y) => new(x * scale + ox, y * scale + oy);
+
+        // 中央死区圆
+        var radius = (float)settings.DeadZoneRadius;
+        var center = Map(frameW * 0.5f, frameH * 0.5f);
+        var rScreen = radius * scale;
+        _deadZoneCircle.Width = rScreen * 2;
+        _deadZoneCircle.Height = rScreen * 2;
+        Canvas.SetLeft(_deadZoneCircle, center.X - rScreen);
+        Canvas.SetTop(_deadZoneCircle, center.Y - rScreen);
+        _deadZoneCircle.Visibility = Visibility.Visible;
+
+        // 平滑指针十字 + 手势文本
+        var action = ViewModel.LastMouseAction;
+        if (action is { ObservedGesture: not GestureKind.Idle })
         {
-            HideAll();
+            var px = action.SmoothedNormalized.X * frameW;
+            var py = action.SmoothedNormalized.Y * frameH;
+            var tip = Map(px, py);
+            const double arm = 12;
+            _crossH.X1 = tip.X - arm;
+            _crossH.Y1 = tip.Y;
+            _crossH.X2 = tip.X + arm;
+            _crossH.Y2 = tip.Y;
+            _crossV.X1 = tip.X;
+            _crossV.Y1 = tip.Y - arm;
+            _crossV.X2 = tip.X;
+            _crossV.Y2 = tip.Y + arm;
+            _crossH.Visibility = Visibility.Visible;
+            _crossV.Visibility = Visibility.Visible;
+
+            _gestureLabel.Text = ViewModel.GestureState;
+            Canvas.SetLeft(_gestureLabel, tip.X + 14);
+            Canvas.SetTop(_gestureLabel, tip.Y - 10);
+            _gestureLabel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _crossH.Visibility = Visibility.Collapsed;
+            _crossV.Visibility = Visibility.Collapsed;
+            _gestureLabel.Visibility = Visibility.Collapsed;
+        }
+
+        if (result is null)
+        {
+            HideHandOverlay();
             return;
         }
-        var scale = Math.Min(cw / result.FrameWidth, ch / result.FrameHeight);
-        var ox = (cw - result.FrameWidth * scale) / 2;
-        var oy = (ch - result.FrameHeight * scale) / 2;
-        Point Map(float x, float y) => new(x * scale + ox, y * scale + oy);
 
         var palm = result.Palm;
         if (showBox && palm is not null)
         {
-            // 有 21 点时用整手包围框(含手指);否则回退到手掌检测框
             if (result.Detected && result.Landmarks.Landmarks.Count >= 21)
             {
                 DrawLandmarkHandBox(result.Landmarks.Landmarks, palm.RotationDegrees, Map);
@@ -242,7 +320,6 @@ public sealed partial class CameraPreviewControl : UserControl
                 _confidenceText.Text = $"palm {palm.Score:F2}";
             }
 
-            // 文本锚定到(平滑后)框的最上角,与框同步移动不跳动
             double anchorX = double.MaxValue, anchorY = double.MaxValue;
             foreach (var pt in _boundingBox.Points)
             {
@@ -293,6 +370,10 @@ public sealed partial class CameraPreviewControl : UserControl
                 dot.Visibility = Visibility.Collapsed;
         }
     }
+
+    private int PreviewBitmapWidth() => ViewModel.PreviewBitmap?.PixelWidth ?? 0;
+
+    private int PreviewBitmapHeight() => ViewModel.PreviewBitmap?.PixelHeight ?? 0;
 
     /// <summary>
     /// 将 21 关键点投影到手掌旋转坐标系,求带边距的 AABB,经 EMA 时间平滑后逆变换回图像坐标绘制整手框。
@@ -402,7 +483,7 @@ public sealed partial class CameraPreviewControl : UserControl
         dot.Visibility = Visibility.Visible;
     }
 
-    private void HideAll()
+    private void HideHandOverlay()
     {
         _boxSmoothingValid = false;
         _boundingBox.Visibility = Visibility.Collapsed;
@@ -413,5 +494,14 @@ public sealed partial class CameraPreviewControl : UserControl
             dot.Visibility = Visibility.Collapsed;
         foreach (var dot in _landmarkDots)
             dot.Visibility = Visibility.Collapsed;
+    }
+
+    private void HideAll()
+    {
+        HideHandOverlay();
+        _deadZoneCircle.Visibility = Visibility.Collapsed;
+        _crossH.Visibility = Visibility.Collapsed;
+        _crossV.Visibility = Visibility.Collapsed;
+        _gestureLabel.Visibility = Visibility.Collapsed;
     }
 }

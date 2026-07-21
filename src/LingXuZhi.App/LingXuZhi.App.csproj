@@ -13,11 +13,21 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\App.ico</ApplicationIcon>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- .NET 卫星程序集:仅保留简体中文 -->
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
     <!-- MVVMTK0045 仅在 AOT 发布时相关,本项目不做 AOT -->
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
   </PropertyGroup>
+
+  <!-- WinAppSDK 自包含会复制大量语言目录;仅保留 zh-CN/en-us,其余删除(全删会导致 0x80073b01 闪退) -->
+  <Target Name="RemoveWinAppSdkCultureFolders" AfterTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference='SilentlyContinue'; $root='$(OutputPath)'; if (-not (Test-Path $root)) { exit 0 }; $keep=@('zh-CN','zh-Hans','en-US','en-us','en'); Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^[a-z]{2,3}(-[A-Za-z0-9]+)+$' -and $keep -notcontains $_.Name } | Remove-Item -Recurse -Force&quot;"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low" />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Autofac" Version="8.*" />
@@ -27,10 +37,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\App.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\LingXuZhi.Core\LingXuZhi.Core.csproj" />
     <ProjectReference Include="..\LingXuZhi.Vision.Abstractions\LingXuZhi.Vision.Abstractions.csproj" />
     <ProjectReference Include="..\LingXuZhi.Vision.OpenCv\LingXuZhi.Vision.OpenCv.csproj" />
     <ProjectReference Include="..\LingXuZhi.Platform\LingXuZhi.Platform.csproj" />
+    <ProjectReference Include="..\LingXuZhi.Platform.Mouse.Abstractions\LingXuZhi.Platform.Mouse.Abstractions.csproj" />
+    <ProjectReference Include="..\LingXuZhi.Platform.Mouse.SendInput\LingXuZhi.Platform.Mouse.SendInput.csproj" />
   </ItemGroup>
 
 </Project>

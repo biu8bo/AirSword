@@ -17,4 +17,6 @@ public sealed partial class SettingsPanelControl : UserControl
     public string Format2(double value) => value.ToString("0.00");
 
     public string FormatPx(double value) => $"{value:F0} px";
+
+    public string FormatInt(double value) => $"{value:F0}";
 }

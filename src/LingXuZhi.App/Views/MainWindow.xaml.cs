@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Windows.Graphics;
@@ -15,6 +16,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(RootPage.TitleBarElement);
         ConfigureCaptionButtons();
+        ApplyWindowIcon();
 
         // 按工作区自适应:占 90% 并居中,小屏幕直接最大化,避免窗口超出屏幕被裁切
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
@@ -27,6 +29,13 @@ public sealed partial class MainWindow : Window
 
         if (workArea.Width < 1500 && AppWindow.Presenter is OverlappedPresenter presenter)
             presenter.Maximize();
+    }
+
+    private void ApplyWindowIcon()
+    {
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "App.ico");
+        if (File.Exists(iconPath))
+            AppWindow.SetIcon(iconPath);
     }
 
     /// <summary>系统窗口按钮(最小化/最大化/关闭)配色对齐深色主题。</summary>

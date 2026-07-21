@@ -88,8 +88,59 @@
             </StackPanel>
 
             <ToggleSwitch
-                Header="启用鼠标仿真(阶段 3 生效)"
+                Header="启用鼠标仿真"
                 IsOn="{x:Bind ViewModel.Settings.MouseSimulationEnabled, Mode=TwoWay}" />
+
+            <StackPanel Spacing="4">
+                <Grid>
+                    <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="捏合阈值" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontFamily="{StaticResource MonoFont}"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="{x:Bind Format2(ViewModel.Settings.PinchThreshold), Mode=OneWay}" />
+                </Grid>
+                <Slider
+                    MinHeight="44"
+                    Maximum="0.2"
+                    Minimum="0.02"
+                    StepFrequency="0.01"
+                    Value="{x:Bind ViewModel.Settings.PinchThreshold, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <Grid>
+                    <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="去抖帧数" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontFamily="{StaticResource MonoFont}"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="{x:Bind FormatInt(ViewModel.Settings.DebounceFrames), Mode=OneWay}" />
+                </Grid>
+                <Slider
+                    MinHeight="44"
+                    Maximum="10"
+                    Minimum="1"
+                    StepFrequency="1"
+                    Value="{x:Bind ViewModel.Settings.DebounceFrames, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <Grid>
+                    <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="滚轮行数" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontFamily="{StaticResource MonoFont}"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="{x:Bind FormatInt(ViewModel.Settings.ScrollLines), Mode=OneWay}" />
+                </Grid>
+                <Slider
+                    MinHeight="44"
+                    Maximum="10"
+                    Minimum="1"
+                    StepFrequency="1"
+                    Value="{x:Bind ViewModel.Settings.ScrollLines, Mode=TwoWay}" />
+            </StackPanel>
 
             <TextBlock
                 Margin="0,8,0,0"

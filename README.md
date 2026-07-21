@@ -1,154 +1,231 @@
-# 凌虚指 / AirSword
+# 凌虚指 · AirSword
 
-> 隔空御剑，剑指为鼠 —— 基于电脑摄像头的手指剑指手势鼠标仿真工具
+<p align="center">
+  <img src="assets/logo.png" alt="凌虚指 AirSword" width="160" />
+</p>
 
-## 项目定位
+<p align="center">
+  <strong>隔空御剑，剑指为鼠</strong><br/>
+  用笔记本摄像头识别手势，把「剑指」变成鼠标
+</p>
 
-利用笔记本前置摄像头识别"剑指"手势（食指与中指并拢伸直，其余手指弯曲收拢），实现隔空鼠标操作：移动、左键、右键、滚轮。技术栈 **.NET 8 + WinUI3**，手部识别基于 **OpenCV DNN + ONNX**（双模型：手掌检测 + 21 关键点），视觉识别层接口化设计，后续可切换 MediaPipe。
+---
 
-## 英文名说明
+## 这是什么
 
-| 候选 | 含义 | 评价 |
-|------|------|------|
-| **AirSword** ✅ 推荐 | Air（隔空）+ Sword（剑指） | 简洁、好记、发音好、易做 logo，语义双关到位 |
-| PhantomPoint | 虚影 + 指点 | 偏虚幻风，不够"剑" |
-| VoidCursor | 虚空 + 光标 | 偏游戏风，缺手指意象 |
+**凌虚指（AirSword）** 是一款 Windows 桌面工具：前置摄像头捕捉手部 21 关键点，识别剑指 / 捏合 / 张开等手势，经平滑与死区处理后，通过系统级鼠标仿真控制指针、点击与滚轮。
 
-> 仓库 / 命名空间 / 解决方案统一用 `LingXuZhi`，对外品牌名 `AirSword`。
+面向「手不想碰触控板 / 鼠标」的场景：演示讲解、沙发躺用、无键鼠临时操控等。
 
-## 技术栈
+| 项 | 说明 |
+|----|------|
+| 平台 | Windows 10 / 11（x64） |
+| 技术 | .NET 8 · WinUI 3 · OpenCV DNN（ONNX）· Autofac |
+| 识别 | 手掌检测 + 21 关键点估计（OpenCV Zoo MediaPipe 风格模型） |
+| 控制 | `IMouseController` 抽象，默认 Win32 `SendInput` 实现 |
 
-| 层 | 选型 | 说明 |
-|----|------|------|
-| 运行时 | .NET 8 | LTS |
-| UI | WinUI 3 (Windows App SDK) | 现代化桌面 UI |
-| MVVM | CommunityToolkit.Mvvm | 官方推荐，源生成器 |
-| 视觉 | OpenCvSharp4 + ONNX Runtime | DNN 推理 |
-| 摄像头 | OpenCV VideoCapture / MediaFoundation | 可切换 |
-| 鼠标 | Windows SendInput (P/Invoke) | 系统级仿真 |
-| DI | Autofac | 容器随主窗口关闭 Dispose，自动释放 IDisposable 单例（原定 MS.DI，阶段 1 实施时变更） |
+仓库 / 命名空间：`LingXuZhi`　对外品牌：**AirSword**
 
-## 工程拆分（核心设计）
+---
+
+## 快速开始
+
+### 环境
+
+- Windows 10 1809+ / Windows 11
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- 可用的摄像头（建议前置）
+- Visual Studio 2022（可选，带 WinUI 工作负载）
+
+### 构建与运行
+
+```bash
+git clone https://github.com/biu8bo/LingXuZhi.git
+cd LingXuZhi
+dotnet build LingXuZhi.sln -c Debug -p:Platform=x64
+dotnet run --project src/LingXuZhi.App/LingXuZhi.App.csproj -c Debug -p:Platform=x64
+```
+
+首次启动会枚举摄像头并打开预览。设置面板中确认 **「启用鼠标仿真」**（默认已开启），再按下方手势操作。
+
+### 单元测试
+
+```bash
+dotnet test tests/LingXuZhi.Core.Tests/LingXuZhi.Core.Tests.csproj
+```
+
+---
+
+## 手势使用说明
+
+手势基于 **MediaPipe 式 21 关键点**。指针采样点为 **食指尖(8) 与中指尖(12) 的中点**。  
+识别经状态机 **去抖**（默认连续 3 帧）后才会切换，减少误触。
+
+### 1. 剑指 · 移动鼠标
+
+| | |
+|--|--|
+| **手势** | 食指、中指伸直并拢；无名指、小指弯曲；拇指收拢 |
+| **动作** | 指针跟随两指尖中点平滑移动 |
+| **提示** | 手在画面 **中央死区**（预览上的虚线圆）内静止时，鼠标 **不移动**；离开死区后才继续跟随 |
+
+适合日常移动光标。默认镜像开启，前置摄像头下左右方向符合直觉。
+
+### 2. 食指–拇指捏合 · 左键单击
+
+| | |
+|--|--|
+| **手势** | 食指尖靠近拇指尖（捏合距离低于阈值）；中指保持伸直 |
+| **动作** | 触发 **一次** 左键单击（按下即释放，本版本不做拖拽按住） |
+| **提示** | 捏住不放不会连点；松开后可再次捏合点击 |
+
+### 3. 食指–中指捏合 · 右键单击
+
+| | |
+|--|--|
+| **手势** | 食指、中指均伸直但两指尖靠拢（捏合） |
+| **动作** | 触发 **一次** 右键单击 |
+| **提示** | 与剑指区分：剑指两指并拢但保持「伸直指向」；右键是两指尖明显贴近 |
+
+### 4. 五指张开 · 滚轮
+
+| | |
+|--|--|
+| **手势** | 拇指 + 四指全部伸直张开 |
+| **动作** | 进入滚轮模式后，**上下摆动手掌** 触发滚轮；默认每次滚动 3 行 |
+| **提示** | 向上摆 → 滚轮向上；向下摆 → 滚轮向下。每次触发后需 **回中** 才能再次滚动，避免持续狂滚 |
+
+### 5. 空闲
+
+以上均不满足时进入空闲，不产生鼠标动作（预览与调试数据仍可刷新）。
+
+### 推荐练习流程
+
+1. 打开应用，面对摄像头，手完整入画  
+2. 做 **剑指**，观察预览十字线与指针跟随  
+3. 移入中央死区，确认指针停下  
+4. **食指–拇指捏合** 左键；**食指–中指捏合** 右键  
+5. **五指张开**，上下摆动手掌试滚轮  
+6. 若不需要控鼠，关闭设置中的「启用鼠标仿真」（仅可视化）
+
+### 可调参数（设置面板）
+
+| 参数 | 作用 | 默认倾向 |
+|------|------|----------|
+| 镜像翻转 | 前置摄像头左右镜像 | 开 |
+| 鼠标灵敏度 | 以画面中心为锚放大偏移 | 1.5 |
+| 平滑系数 | 越大越稳（内部映射为更小的 EMA α） | 0.7 |
+| 死区半径 | 画面中央静止区（像素） | 40 |
+| 捏合阈值 | 相对手掌宽度 | 0.05 |
+| 去抖帧数 | 状态切换所需连续帧 | 3 |
+| 滚轮行数 | 每次摆动滚动行数 | 3 |
+| 启用鼠标仿真 | 总开关 | 开 |
+
+---
+
+## 功能一览
+
+- 摄像头预览 + 骨架 / 手部旋转框叠加  
+- 死区圆、指针十字、当前手势文字叠加  
+- 调试面板：手势状态、状态转移、平滑前后坐标、死区命中、鼠标位移、点击/滚轮计数  
+- 底部运行日志；全局异常写入 `crash.log` 并回显日志面板  
+- 鼠标实现可替换（抽象 / SendInput 分项目）
+
+---
+
+## 项目结构
 
 ```
-LingXuZhi.sln
+LingXuZhi/
+├── assets/                              # 品牌资源（SVG 源、PNG、ICO）
+│   ├── logo.svg
+│   ├── logo.png
+│   └── App.ico
+├── prompts/                             # 分阶段开发提示词
 ├── src/
-│   ├── LingXuZhi.App/                  # WinUI3 主应用
-│   │   ├── ViewModels/                 # MVVM ViewModel
-│   │   ├── Views/                      # 页面/窗口
-│   │   ├── Controls/                   # 摄像头预览、骨架叠加、调试面板等自定义控件
-│   │   ├── Hosting/                    # DI 容器装配、主机生命周期
-│   │   └── Converters/                 # 值转换器
-│   │
-│   ├── LingXuZhi.Core/                 # 核心业务（零平台依赖，可单测）
-│   │   ├── Gestures/                   # 手势识别 + 状态机
-│   │   ├── Tracking/                   # 平滑滤波、死区、坐标映射
-│   │   ├── Pipeline/                   # 处理管线编排（帧 → 识别 → 追踪 → 动作）
-│   │   └── Configuration/             # 参数模型（灵敏度、死区、平滑系数等）
-│   │
-│   ├── LingXuZhi.Vision.Abstractions/  # 视觉识别接口与数据结构（零实现依赖）
-│   │   └── IHandDetector / IHandLandmarker / ImageFrame / PalmDetection …
-│   │
-│   ├── LingXuZhi.Vision.OpenCv/       # OpenCV DNN ONNX 实现（独立项目）
-│   │   ├── OpenCvPalmDetector / OpenCvHandLandmarker / RoiExtractor
-│   │   └── Models/                    # ONNX 模型文件（随项目输出拷贝）
-│   │
-│   ├── LingXuZhi.Vision.MediaPipe/    # MediaPipe 实现预留（独立项目，本期仅 README）
-│   │
-│   └── LingXuZhi.Platform/           # 平台交互（Windows 实现）
-│       ├── Camera/                    # ICameraSource + OpenCV/MF 实现
-│       └── Mouse/                     # IMouseController + SendInput 实现
-│
-├── tests/
-│   ├── LingXuZhi.Core.Tests/
-│   └── LingXuZhi.Vision.Tests/
-│
-└── docs/
-    ├── README.md                      # 本文件
-    └── prompts/                       # 三阶段开发提示词
-        ├── 01-skeleton-and-ui.md
-        ├── 02-vision-and-visualization.md
-        └── 03-tracking-and-mouse-simulation.md
+│   ├── LingXuZhi.App/                   # WinUI 3 主程序
+│   │   ├── Assets/                      # 应用图标（运行时拷贝）
+│   │   ├── Controls/                    # 预览叠加、设置、调试面板
+│   │   ├── Diagnostics/                 # 全局异常捕获
+│   │   ├── Hosting/                     # Autofac 装配
+│   │   ├── Services/                    # 手部追踪、手势→鼠标桥接
+│   │   ├── ViewModels/
+│   │   └── Views/
+│   ├── LingXuZhi.Core/                  # 手势 / 平滑 / 死区 / 管线（零平台依赖）
+│   │   ├── Configuration/
+│   │   ├── Gestures/
+│   │   ├── Pipeline/
+│   │   └── Tracking/
+│   ├── LingXuZhi.Vision.Abstractions/   # 视觉接口与纯数据类型
+│   ├── LingXuZhi.Vision.OpenCv/         # OpenCV DNN + ONNX 实现与模型
+│   ├── LingXuZhi.Vision.MediaPipe/      # MediaPipe 预留占位
+│   ├── LingXuZhi.Platform/              # 摄像头等平台能力
+│   ├── LingXuZhi.Platform.Mouse.Abstractions/  # IMouseController
+│   └── LingXuZhi.Platform.Mouse.SendInput/    # SendInput 实现
+└── tests/
+    └── LingXuZhi.Core.Tests/            # 手势、状态机、平滑等单测
 ```
 
-## 关键解耦点
+### 关键分层
 
-| 接口 | 职责 | 本期实现 | 预留切换 |
-|------|------|----------|----------|
-| `IHandDetector` | 输入帧 → 手掌边界框 + 关键点（旋转/缩放） | OpenCV DNN ONNX | MediaPipe Palm |
-| `IHandLandmarker` | ROI 图像 → 21 个手部关键点坐标 | OpenCV DNN ONNX | MediaPipe Hand |
-| `ICameraSource` | 摄像头帧采集（异步流） | OpenCV VideoCapture | MediaFoundation |
-| `IMouseController` | 鼠标移动/左键/右键/滚轮 | Windows SendInput | — |
-| `IGestureRecognizer` | 21 关键点 → 手势状态 | 剑指/捏合左/捏合右/张开滚轮/空闲 | — |
+| 接口 | 职责 | 当前实现 | 可替换方向 |
+|------|------|----------|------------|
+| `IHandDetector` | 帧 → 手掌框 | OpenCvPalmDetector | MediaPipe Palm |
+| `IHandLandmarker` | ROI → 21 点 | OpenCvHandLandmarker | MediaPipe Hand |
+| `ICameraSource` | 采集帧流 | OpenCvVideoCaptureSource | MediaFoundation 等 |
+| `IMouseController` | 移动 / 点击 / 滚轮 | WindowsSendInputMouseController | 其他模拟库 |
+| `IGestureRecognizer` | 21 点 → 手势观测 | DefaultGestureRecognizer | 自定义规则 |
 
-> **解耦红线**：`LingXuZhi.Core` 不得引用 OpenCvSharp、ONNX、WinUI、Windows API。所有平台/视觉依赖只能出现在 `Vision` / `Platform` / `App` 层。`Core` 只认自己定义的数据结构。
+**红线**：`LingXuZhi.Core` 不引用 OpenCvSharp、ONNX、WinUI、Win32。换视觉后端或鼠标库只需改 DI 注册。
 
-## 数据流（处理管线）
+### 数据流
 
 ```
 摄像头帧
-  → IHandDetector          (手掌检测 → 边界框 + 旋转 ROI)
-  → ROI 裁剪 + 仿射变换
-  → IHandLandmarker        (21 关键点，归一化坐标)
-  → 关键点反变换回原图坐标
-  → Tracking 平滑滤波      (EMA / 卡尔曼，可配置)
-  → 死区判定               (屏幕中央静止区不动作)
-  → IGestureRecognizer     (状态机：剑指移动 / 捏合左键 / 捏合右键 / 张开滚轮 / 空闲)
-  → IMouseController       (执行鼠标动作)
-       │
-       └──→ 可视化层       (骨架叠加 + 调试面板 + 状态指示)
+  → ICameraSource
+  → HandTrackingService（检测 + 关键点）
+  → GestureControlService / GesturePipeline
+       识别 → EMA 平滑 → 死区 → 状态机 → MouseAction
+  → IMouseController（若启用仿真）
+  → UI 预览叠加 + 调试面板
 ```
 
-## UI/UX 设计基线
+---
 
-来自 ui-ux-pro-max 设计系统查询，适配桌面调试工具：
+## 品牌与图标
 
-| 维度 | 取值 | 理由 |
+源文件在 `assets/`：
+
+- `logo.svg` — 矢量原稿（剑指手势 + 光标火花，深色 slate + 蓝 + 琥珀）  
+- `logo.png` — 高清位图（README / 宣传）  
+- `App.ico` — 多尺寸图标（16～256）  
+
+应用侧：`ApplicationIcon`、任务栏 `AppWindow.SetIcon`、标题栏 Logo 图均已接入。
+
+重新从 SVG 出图时，可用 [resvg](https://github.com/RazrFalcon/resvg) 等工具栅格化后再打 ICO。
+
+---
+
+## 开发阶段
+
+| 阶段 | 文档 | 状态 |
 |------|------|------|
-| 整体风格 | 深色技术调试风 | 长时间盯屏不累，凸显摄像头画面与骨架叠加 |
-| 背景色 | `#0F172A` (Slate-900) | 深底 |
-| 面板/卡片 | `#1E293B` (Slate-800) | 层次 |
-| 主色（聚焦/激活） | `#3B82F6` (Blue-500) | 识别框、激活态 |
-| 次要文本 | `#94A3B8` (Slate-400) | 调试数据 |
-| 主文本 | `#F1F5F9` (Slate-100) | 高对比 |
-| 警告/错误 | `#EF4444` / `#F59E0B` | 状态异常 |
-| 成功/激活 | `#22C55E` | 识别成功 |
-| 等宽字体 | JetBrains Mono | 坐标、FPS、调试数值 |
-| UI 字体 | IBM Plex Sans（或系统默认 Segoe UI Variable） | 面板文字 |
-| 过渡 | 150-300ms | 状态切换 |
+| 1 | `prompts/01-skeleton-and-ui.md` | 完成 · 骨架与界面 |
+| 2 | `prompts/02-vision-and-visualization.md` | 完成 · 识别与可视化 |
+| 3 | `prompts/03-tracking-and-mouse-simulation.md` | 完成 · 手势追踪与鼠标仿真 |
 
-> WinUI3 桌面应用优先用 Segoe UI Variable（系统原生），JetBrains Mono 用于调试数值区。颜色通过 `Application.Resources` 主题字典统一管理。
+---
 
-阶段 1 实施补充（详见 `prompts/01-skeleton-and-ui.md` 底部"第一阶段补充修改"）：
+## 已知限制
 
-- 自定义标题栏替代系统标题栏（48px，含状态胶囊与 FPS），窗口按钮配色对齐深色主题。
-- 底部运行日志面板（等宽字体、自动滚动、上限 500 行）。
-- 窗口按工作区自适应（90% 居中，小屏最大化）；面板统一 1px 边框 `#334155`。
+- 本版本 **不支持拖拽按住**、多手、惯用手切换、自定义手势  
+- 强逆光 / 手出画 / 遮挡会导致识别中断  
+- 自包含 WinAppSDK 输出体积较大；构建会裁剪多余语言资源目录（保留 `zh-CN` / `en-us`）
 
-## 三阶段开发提示词索引
+---
 
-| 阶段 | 文档 | 目标 | 产出可验证标准 |
-|------|------|------|----------------|
-| 1 | `prompts/01-skeleton-and-ui.md` | 工程骨架 + 可视化界面 | 项目编译通过，摄像头预览运行，设置面板可用 |
-| 2 | `prompts/02-vision-and-visualization.md` | 手部识别 + 骨架可视化 + 调试输出 | 摄像头画面上叠加 21 关键点骨架，调试面板实时显示坐标/FPS/置信度 |
-| 3 | `prompts/03-tracking-and-mouse-simulation.md` | 手势追踪 + 鼠标仿真 | 剑指移动鼠标、捏合左右键、手掌滚轮，移动平滑、中央死区生效 |
+## 许可证与贡献
 
-## 设计原则（贯穿三阶段）
+开源仓库：<https://github.com/biu8bo/LingXuZhi>  
 
-遵循 andrej-karpathy 行为准则：
-
-1. **先想后写**：每个阶段开始前，AI 必须先列出假设、歧义点、备选方案，不确定就问，不默默选。
-2. **最小实现**：只做该阶段要求的事，不跨阶段实现，不加未要求的"灵活性"。
-3. **外科式修改**：跨阶段迭代时只改该阶段相关代码，不顺手重构无关代码。
-4. **目标驱动**：每个阶段都有可验证的成功标准，做完即验证，不靠"感觉对了"。
-
-## 模型来源
-
-```bash
-# 手掌检测
-curl -LO https://github.com/opencv/opencv_zoo/raw/main/models/palm_detection_mediapipe/palm_detection_mediapipe_2023feb.onnx
-# 21 关键点
-curl -LO https://github.com/opencv/opencv_zoo/raw/main/models/handpose_estimation_mediapipe/handpose_estimation_mediapipe_2023feb.onnx
-```
-
-放入 `src/LingXuZhi.Vision.OpenCv/Models/`（OpenCV DNN 实现独立项目内，不放外部 assets 目录），构建时拷贝到输出目录 `Models\`（`CopyToOutputDirectory`）。
+欢迎 Issue / PR。改动请尽量保持 Core 无平台依赖，并补齐相关单测。

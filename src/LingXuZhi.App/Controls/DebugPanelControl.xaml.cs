@@ -13,4 +13,6 @@ public sealed partial class DebugPanelControl : UserControl
         ViewModel = App.Container.Resolve<MainViewModel>();
         InitializeComponent();
     }
+
+    public string ClickScrollText(string clicks, string scrolls) => $"{clicks} / {scrolls}";
 }

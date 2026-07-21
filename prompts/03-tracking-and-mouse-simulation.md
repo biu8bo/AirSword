@@ -88,25 +88,24 @@
 
 ### 必做
 
-- [ ] `Core/Gestures/`：
+- [x] `Core/Gestures/`：
   - `IGestureRecognizer` + `DefaultGestureRecognizer`：输入 21 关键点 → 输出 `GestureState`（枚举 + 附带数据如指针位置）。
   - 手指伸直/弯曲判定工具方法。
   - 捏合距离计算。
-- [ ] `Core/Gestures/GestureStateMachine`：状态机（空闲/移动/左键触发/右键触发/滚轮模式），去抖切换。
-- [ ] `Core/Tracking/`：
+- [x] `Core/Gestures/GestureStateMachine`：状态机（空闲/移动/左键触发/右键触发/滚轮模式），去抖切换。
+- [x] `Core/Tracking/`：
   - `ISmoother` 接口 + `EmaSmoother` 实现（α 可配）。
   - `KalmanSmoother` 预留接口（可不实现，仅占位）。
   - `DeadZoneFilter`：死区判定。
   - `CoordinateMapper`：归一化坐标 → 屏幕像素，含镜像翻转。
-- [ ] `Core/Pipeline/GesturePipeline`：串联 阶段2识别结果 → 平滑 → 死区 → 状态机 → 输出动作事件。
-- [ ] `Platform/Mouse/`：
+- [x] `Core/Pipeline/GesturePipeline`：串联 阶段2识别结果 → 平滑 → 死区 → 状态机 → 输出动作事件。
+- [x] `Platform/Mouse/`：
   - `IMouseController` 接口 + `WindowsSendInputMouseController` 实现。
   - P/Invoke SendInput 封装。
-- [ ] `App`：将动作事件接到 `IMouseController`；"启用鼠标仿真"开关生效。
-- [ ] 调试面板升级：显示当前手势状态、状态机转移、平滑前后坐标、死区命中、鼠标实际位移、滚轮事件计数。
-- [ ] 预览控件叠加：绘制死区圆圈（屏幕中央）、指针位置十字线、当前手势文本。
-- [ ] 配置项：灵敏度、平滑系数 α、死区半径、捏合阈值、去抖帧数/时间、滚轮行数、镜像翻转。
-
+- [x] `App`：将动作事件接到 `IMouseController`；"启用鼠标仿真"开关生效。
+- [x] 调试面板升级：显示当前手势状态、状态机转移、平滑前后坐标、死区命中、鼠标实际位移、滚轮事件计数。
+- [x] 预览控件叠加：绘制死区圆圈（屏幕中央）、指针位置十字线、当前手势文本。
+- [x] 配置项：灵敏度、平滑系数 α、死区半径、捏合阈值、去抖帧数/时间、滚轮行数、镜像翻转。
 ### 不做
 
 - 拖拽（持续按住移动）

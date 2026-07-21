@@ -3,3 +3,6 @@ obj/
 .vs/
 .idea/
 *.user
+**/node_modules/
+**/package-lock.json
+crash.log
