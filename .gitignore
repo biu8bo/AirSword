@@ -1,9 +1,11 @@
 bin/
 obj/
-publish/
 .vs/
 .idea/
 *.user
 **/node_modules/
 **/package-lock.json
 crash.log
+publish/
+publish-folder/
+AirSword-win-x64.zip

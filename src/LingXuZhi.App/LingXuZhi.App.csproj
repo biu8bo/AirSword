@@ -23,12 +23,15 @@
   </PropertyGroup>
 
   <!-- WinAppSDK 自包含会复制大量语言目录;仅保留 zh-CN/en-us,其余删除(全删会导致 0x80073b01 闪退) -->
-  <Target Name="RemoveWinAppSdkCultureFolders" AfterTargets="Build">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference='SilentlyContinue'; $root='$(OutputPath)'; if (-not (Test-Path $root)) { exit 0 }; $keep=@('zh-CN','zh-Hans','en-US','en-us','en'); Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^[a-z]{2,3}(-[A-Za-z0-9]+)+$' -and $keep -notcontains $_.Name } | Remove-Item -Recurse -Force&quot;"
+  <Target Name="RemoveWinAppSdkCultureFolders" AfterTargets="Build;Publish">
+    <PropertyGroup>
+      <_CultureCleanRoot Condition="'$(PublishDir)' != ''">$(PublishDir)</_CultureCleanRoot>
+      <_CultureCleanRoot Condition="'$(_CultureCleanRoot)' == ''">$(OutputPath)</_CultureCleanRoot>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference='SilentlyContinue'; $root='$(_CultureCleanRoot)'; if (-not (Test-Path $root)) { exit 0 }; $keep=@('zh-CN','zh-Hans','en-US','en-us','en'); Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^[a-z]{2,3}(-[A-Za-z0-9]+)+$' -and $keep -notcontains $_.Name } | Remove-Item -Recurse -Force&quot;"
           IgnoreExitCode="true"
           StandardOutputImportance="low" />
   </Target>
-
   <ItemGroup>
     <PackageReference Include="Autofac" Version="8.*" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />

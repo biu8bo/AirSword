@@ -54,17 +54,30 @@ dotnet run --project src/LingXuZhi.App/LingXuZhi.App.csproj -c Debug -p:Platform
 dotnet test tests/LingXuZhi.Core.Tests/LingXuZhi.Core.Tests.csproj
 ```
 
-### 发布单文件
+### 发布（推荐：自包含文件夹）
 
-```bash
-dotnet publish src/LingXuZhi.App/LingXuZhi.App.csproj -c Release -r win-x64 -p:Platform=x64 ^
-  -p:SelfContained=false -p:PublishSingleFile=true ^
-  -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true ^
+> **不要用 `PublishSingleFile=true`。** WinUI 3 解包自包含应用打成单文件后，启动会报 `0x80040111`（ClassFactory 无法提供请求的类），这是 Windows App SDK 与单文件解压路径的已知冲突。请用下面的文件夹发布。
+
+```powershell
+# 在仓库根目录执行（PowerShell）
+dotnet publish src/LingXuZhi.App/LingXuZhi.App.csproj `
+  -c Release -r win-x64 -p:Platform=x64 `
+  -p:SelfContained=true `
+  -p:WindowsAppSDKSelfContained=true `
+  -p:PublishSingleFile=false `
   -o publish
+
+# 可选：打成 zip 方便拷贝
+Compress-Archive -Path publish\* -DestinationPath AirSword-win-x64.zip -Force
 ```
 
-产出 `publish/LingXuZhi.App.exe`（约 200MB,框架依赖:内含 WinAppSDK、OpenCV 原生库与 ONNX 模型,目标机器需预装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)）。首次启动会将原生库与模型自解压到临时目录,稍慢属正常现象。  
-若想完全免依赖(拷来即用),把 `-p:SelfContained=false` 改为 `true` 即可,体积约 260MB。
+或直接运行脚本：
+
+```powershell
+pwsh -File scripts/publish.ps1
+```
+
+产出 `publish/LingXuZhi.App.exe` 及同目录依赖（含 WinAppSDK、OpenCV 原生库、ONNX 模型）。**请保持整个 `publish` 文件夹完整**，双击其中的 `LingXuZhi.App.exe` 即可，无需预装 .NET / Windows App SDK。
 
 ---
 
