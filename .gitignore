@@ -8,4 +8,5 @@ obj/
 crash.log
 publish/
 publish-folder/
+dist/
 AirSword-win-x64.zip

@@ -67,17 +67,21 @@ dotnet publish src/LingXuZhi.App/LingXuZhi.App.csproj `
   -p:PublishSingleFile=false `
   -o publish
 
-# 可选：打成 zip 方便拷贝
-Compress-Archive -Path publish\* -DestinationPath AirSword-win-x64.zip -Force
+# 可选：打成 zip 方便拷贝（脚本会输出到 dist/AirSword-win-x64.zip）
+# Compress-Archive -Path publish\* -DestinationPath dist\AirSword-win-x64.zip -Force
 ```
 
-或直接运行脚本：
+或直接运行脚本（会同时生成 `publish\` 目录与 `dist\AirSword-win-x64.zip`）：
 
 ```powershell
 pwsh -File scripts/publish.ps1
 ```
 
-产出 `publish/LingXuZhi.App.exe` 及同目录依赖（含 WinAppSDK、OpenCV 原生库、ONNX 模型）。**请保持整个 `publish` 文件夹完整**，双击其中的 `LingXuZhi.App.exe` 即可，无需预装 .NET / Windows App SDK。
+产出：
+- `publish/LingXuZhi.App.exe` 及同目录依赖（**请保持整个文件夹完整**）
+- `dist/AirSword-win-x64.zip`（把 zip 拷到别的机器解压即可用）
+
+无需预装 .NET / Windows App SDK。
 
 ---
 
