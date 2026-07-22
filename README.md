@@ -28,7 +28,7 @@
 | 识别 | 手掌检测 + 21 关键点估计（OpenCV Zoo MediaPipe 风格模型） |
 | 控制 | `IMouseController` 抽象，默认 Win32 `SendInput` 实现 |
 
-仓库 / 命名空间：`LingXuZhi`　对外品牌：**AirSword**
+GitHub 仓库：**[AirSword](https://github.com/biu8bo/AirSword)**（解决方案 / C# 命名空间仍为 `LingXuZhi`）
 
 ---
 
@@ -44,8 +44,8 @@
 ### 构建与运行
 
 ```bash
-git clone https://github.com/biu8bo/LingXuZhi.git
-cd LingXuZhi
+git clone https://github.com/biu8bo/AirSword.git
+cd AirSword
 dotnet build LingXuZhi.sln -c Debug -p:Platform=x64
 dotnet run --project src/LingXuZhi.App/LingXuZhi.App.csproj -c Debug -p:Platform=x64
 ```
@@ -176,11 +176,14 @@ pwsh -File scripts/publish.ps1
 ## 项目结构
 
 ```
-LingXuZhi/
-├── assets/                              # 品牌资源（SVG 源、PNG、ICO）
+AirSword/
+├── assets/                              # 品牌资源（SVG 源、PNG、ICO、截图）
 │   ├── logo.svg
 │   ├── logo.png
+│   ├── screenshot.png
 │   └── App.ico
+├── scripts/
+│   └── publish.ps1                      # 自包含发布脚本
 ├── prompts/                             # 分阶段开发提示词
 ├── src/
 │   ├── LingXuZhi.App/                   # WinUI 3 主程序
@@ -266,6 +269,6 @@ LingXuZhi/
 
 ## 许可证与贡献
 
-开源仓库：<https://github.com/biu8bo/LingXuZhi>  
+开源仓库：<https://github.com/biu8bo/AirSword>  
 
 欢迎 Issue / PR。改动请尽量保持 Core 无平台依赖，并补齐相关单测。
