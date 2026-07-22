@@ -9,6 +9,10 @@
   用笔记本摄像头识别手势，把「食指」变成鼠标
 </p>
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="凌虚指 AirSword 界面截图" width="900" />
+</p>
+
 ---
 
 ## 这是什么
