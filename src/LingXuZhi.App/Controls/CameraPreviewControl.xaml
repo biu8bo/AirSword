@@ -13,6 +13,89 @@
         <!-- 骨架/边界框叠加层,代码后置绘制 -->
         <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False" />
 
+        <!-- 未检测到手:半透明遮罩 + 操作说明;检测到手后渐隐 -->
+        <Grid
+            x:Name="HelpOverlay"
+            IsHitTestVisible="False"
+            Opacity="0"
+            Visibility="Collapsed">
+            <Border Background="#B30B1120" />
+            <ScrollViewer
+                MaxWidth="520"
+                Margin="24"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Foreground="{StaticResource TextPrimaryBrush}"
+                        Text="操作说明" />
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        Text="面对摄像头,让手完整入画。检测到手后本说明会自动隐藏。"
+                        TextWrapping="Wrap" />
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="食指 · 移动指针" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            Text="食指伸直、中指收起。指针跟随食指尖移动;中指也伸直时不识别为移动。"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="拇指–食指捏合 · 左键" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            TextWrapping="Wrap">
+                            <Run Text="单击:原地捏合后松开  ·  双击:连续两次单击  ·  拖拽:捏住移动" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="比耶并拢 · 右键" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            Text="食指与中指伸直做比耶,再把两指尖并拢一下;并拢不放不会连点。"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource AccentBrush}"
+                            Text="张开手掌 · 滚轮" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            TextWrapping="Wrap">
+                            <Run Text="五指张开向上滚;四指张开、拇指弯向掌心向下滚。收回手势即停止。" />
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
         <!-- 摄像头未出画:Loading -->
         <Grid
             x:Name="LoadingOverlay"

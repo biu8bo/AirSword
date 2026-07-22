@@ -48,10 +48,14 @@ public sealed partial class CameraPreviewControl : UserControl
     private readonly Ellipse[] _palmDots = new Ellipse[7];
     private readonly Polygon _boundingBox;
     private readonly TextBlock _confidenceText;
-    private readonly Ellipse _deadZoneCircle;
     private readonly Line _crossH;
     private readonly Line _crossV;
     private readonly TextBlock _gestureLabel;
+
+    private Storyboard? _loadingPulse;
+    private Storyboard? _helpFade;
+    private bool _helpVisible;
+    private bool _handDetected;
 
     public MainViewModel ViewModel { get; }
 
@@ -146,18 +150,6 @@ public sealed partial class CameraPreviewControl : UserControl
         };
         OverlayCanvas.Children.Add(_confidenceText);
 
-        var deadZoneBrush = new SolidColorBrush(Color.FromArgb(0x66, 0xF5, 0x9E, 0x0B));
-        _deadZoneCircle = new Ellipse
-        {
-            Stroke = warningBrush,
-            StrokeThickness = 1.5,
-            StrokeDashArray = new DoubleCollection { 4, 3 },
-            Fill = deadZoneBrush,
-            IsHitTestVisible = false,
-            Visibility = Visibility.Collapsed,
-        };
-        OverlayCanvas.Children.Insert(0, _deadZoneCircle);
-
         var crossBrush = new SolidColorBrush(Color.FromArgb(0xE6, 0x22, 0xC5, 0x5E));
         _crossH = new Line { Stroke = crossBrush, StrokeThickness = 2, Visibility = Visibility.Collapsed };
         _crossV = new Line { Stroke = crossBrush, StrokeThickness = 2, Visibility = Visibility.Collapsed };
@@ -181,23 +173,31 @@ public sealed partial class CameraPreviewControl : UserControl
                 or nameof(MainViewModel.GestureState))
                 UpdateOverlay();
             else if (e.PropertyName is nameof(MainViewModel.IsPreviewReady))
+            {
                 SyncLoadingAnimation();
+                SyncHelpOverlay();
+            }
         };
         ViewModel.Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(LingXuZhi.Core.Configuration.AppSettings.DrawSkeleton)
-                or nameof(LingXuZhi.Core.Configuration.AppSettings.DrawBoundingBox)
-                or nameof(LingXuZhi.Core.Configuration.AppSettings.DeadZoneRadius))
+                or nameof(LingXuZhi.Core.Configuration.AppSettings.DrawBoundingBox))
                 UpdateOverlay();
         };
     }
 
-    private Storyboard? _loadingPulse;
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        SyncLoadingAnimation();
+        SyncHelpOverlay();
+    }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => SyncLoadingAnimation();
-
-    private void OnUnloaded(object sender, RoutedEventArgs e) => StopLoadingPulse();
-
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        StopLoadingPulse();
+        _helpFade?.Stop();
+        _helpFade = null;
+    }
     private void SyncLoadingAnimation()
     {
         if (ViewModel.IsPreviewReady)
@@ -235,13 +235,66 @@ public sealed partial class CameraPreviewControl : UserControl
         LoadingLabel.Opacity = 1;
     }
 
+    /// <summary>无手时显示操作说明遮罩;有手时渐隐。</summary>
+    private void SyncHelpOverlay()
+    {
+        var shouldShow = ViewModel.IsPreviewReady && !_handDetected;
+        if (shouldShow == _helpVisible)
+            return;
+
+        _helpVisible = shouldShow;
+        _helpFade?.Stop();
+
+        if (shouldShow)
+        {
+            HelpOverlay.Visibility = Visibility.Visible;
+            var fadeIn = new DoubleAnimation
+            {
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(280),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            };
+            Storyboard.SetTarget(fadeIn, HelpOverlay);
+            Storyboard.SetTargetProperty(fadeIn, "Opacity");
+            _helpFade = new Storyboard();
+            _helpFade.Children.Add(fadeIn);
+            _helpFade.Begin();
+        }
+        else
+        {
+            var fadeOut = new DoubleAnimation
+            {
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(360),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
+            };
+            Storyboard.SetTarget(fadeOut, HelpOverlay);
+            Storyboard.SetTargetProperty(fadeOut, "Opacity");
+            _helpFade = new Storyboard();
+            _helpFade.Children.Add(fadeOut);
+            _helpFade.Completed += (_, _) =>
+            {
+                if (!_helpVisible)
+                    HelpOverlay.Visibility = Visibility.Collapsed;
+            };
+            _helpFade.Begin();
+        }
+    }
+
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs e) => UpdateOverlay();
 
     private void UpdateOverlay()
     {
         var result = ViewModel.OverlayResult;
         var settings = ViewModel.Settings;
-        var showSkeleton = result is { Detected: true } && settings.DrawSkeleton;
+        var detected = result is { Detected: true };
+        if (_handDetected != detected)
+        {
+            _handDetected = detected;
+            SyncHelpOverlay();
+        }
+
+        var showSkeleton = detected && settings.DrawSkeleton;
         var showBox = result?.Palm is not null && settings.DrawBoundingBox;
 
         double cw = OverlayCanvas.ActualWidth, ch = OverlayCanvas.ActualHeight;
@@ -257,16 +310,6 @@ public sealed partial class CameraPreviewControl : UserControl
         var ox = (cw - frameW * scale) / 2;
         var oy = (ch - frameH * scale) / 2;
         Point Map(float x, float y) => new(x * scale + ox, y * scale + oy);
-
-        // 中央死区圆
-        var radius = (float)settings.DeadZoneRadius;
-        var center = Map(frameW * 0.5f, frameH * 0.5f);
-        var rScreen = radius * scale;
-        _deadZoneCircle.Width = rScreen * 2;
-        _deadZoneCircle.Height = rScreen * 2;
-        Canvas.SetLeft(_deadZoneCircle, center.X - rScreen);
-        Canvas.SetTop(_deadZoneCircle, center.Y - rScreen);
-        _deadZoneCircle.Visibility = Visibility.Visible;
 
         // 平滑指针十字 + 手势文本
         var action = ViewModel.LastMouseAction;
@@ -304,7 +347,6 @@ public sealed partial class CameraPreviewControl : UserControl
             HideHandOverlay();
             return;
         }
-
         var palm = result.Palm;
         if (showBox && palm is not null)
         {
@@ -499,7 +541,6 @@ public sealed partial class CameraPreviewControl : UserControl
     private void HideAll()
     {
         HideHandOverlay();
-        _deadZoneCircle.Visibility = Visibility.Collapsed;
         _crossH.Visibility = Visibility.Collapsed;
         _crossV.Visibility = Visibility.Collapsed;
         _gestureLabel.Visibility = Visibility.Collapsed;

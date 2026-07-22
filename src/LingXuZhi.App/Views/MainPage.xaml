@@ -208,7 +208,7 @@
                         <TextBlock
                             FontSize="13"
                             Foreground="{StaticResource TextPrimaryBrush}"
-                            Text="食指伸直、中指收起,其他手指不参与判定。指针跟随食指尖平滑移动;手停在画面中央虚线圆(死区)内时指针静止。注意:中指也伸直时不识别为移动,四指全伸直会进入滚轮手势。"
+                            Text="食指伸直、中指收起,其他手指不参与判定。指针跟随食指尖平滑移动。注意:中指也伸直时不识别为移动,四指全伸直会进入滚轮手势。"
                             TextWrapping="Wrap" />
                     </StackPanel>
 
